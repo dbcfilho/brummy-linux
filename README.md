@@ -94,6 +94,8 @@ brummy-linux/
 - [x] v1.1a — `hyprland --verify-config` na VM: **config ok** (a migração Lua
       está validada; `hl.print` não existia e foi corrigido)
 - [ ] v1.2 — `./install.sh` completo validado de ponta a ponta
+- [ ] v1.3 — janelas clicáveis sobre o tiling (hyprbars + taskbar):
+      desenhado em `docs/janelas-clicaveis.md`, à espera da v1.2
 - [ ] v1.3 — ISO live (esqueleto pronto em `iso/`, falta a primeira build)
 - [ ] futuro: LFS / kernel próprio pra aprender (separado deste repo)
 
