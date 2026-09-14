@@ -121,6 +121,27 @@ funcionar, SSH na porta 2222):
 ./tools/vm.sh ssh                         # entra sem mexer na janela
 ```
 
+### Levar o repo para dentro da VM
+
+Com a VM rodando pelo `tools/vm.sh`, um comando no host:
+
+```bash
+./tools/vm.sh enviar          # manda o repo inteiro para ~/brummy-linux na VM
+```
+
+Ele usa `tar` por cima do SSH, não `scp`, de propósito: o caminho deste repo tem
+espaço (`Documentos/Default Project/`) e o `scp` passa o caminho remoto por mais
+uma camada de shell — daí o erro enganoso
+
+```
+ssh: Could not resolve hostname ...: Name or service not known
+```
+
+que na verdade é o `Project` sendo lido como um segundo host. Com `tar` o caminho
+nunca viaja pela linha de comando.
+
+A VM precisa de sshd ligado: `sudo systemctl enable --now sshd` lá dentro.
+
 E pare de usar `scp`: com o repo no GitHub, dentro da VM é
 
 ```bash

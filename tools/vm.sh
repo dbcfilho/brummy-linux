@@ -13,7 +13,8 @@
 #   ./tools/vm.sh iso arquivo.iso  boota uma ISO (instalar Arch / testar a ISO do Brummy)
 #   ./tools/vm.sh overlay disco    boota um disco existente SEM escrever nele
 #   ./tools/vm.sh rodar [disco]    boota o disco instalado
-#   ./tools/vm.sh ssh              entra por SSH na VM (porta 2222)
+#   ./tools/vm.sh enviar [usuario]  copia o repo inteiro para dentro da VM
+#   ./tools/vm.sh ssh [usuario]     entra por SSH na VM (porta 2222)
 #
 # Para reaproveitar a VM que já existe no Boxes, sem reinstalar nada:
 #   ./tools/vm.sh achar            → mostra o comando pronto, com o caminho certo
@@ -229,6 +230,28 @@ DEPS
     echo "(o overlay depende do disco base — se você apagar a VM no Boxes, ele para de funcionar)"
     echo ""
     exec "$0" rodar "$OVL"
+    ;;
+
+  enviar)
+    # Manda o repo INTEIRO para a VM em um comando, pela porta 2222 que o
+    # `rodar` já encaminha. Usa tar em vez de scp de propósito: o caminho deste
+    # repo tem espaço ("Default Project"), e scp passa o caminho por mais uma
+    # camada de shell — é por isso que `scp -r ...:Documentos/Default Project/...`
+    # falha com "Could not resolve hostname". Com tar o caminho nunca viaja.
+    USER_VM="${2:-dbrum}"
+    echo "==> enviando $REPO_DIR para $USER_VM@VM:~/brummy-linux"
+    echo "    (a VM precisa estar rodando, com sshd ligado: sudo systemctl start sshd)"
+    tar -C "$(dirname "$REPO_DIR")" --exclude=.git --exclude=iso/out --exclude=iso/.cache \
+        -czf - "$(basename "$REPO_DIR")" \
+      | ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            "$USER_VM@127.0.0.1" 'rm -rf ~/brummy-linux.novo && mkdir -p ~/brummy-linux.novo &&
+              tar -xzf - -C ~/brummy-linux.novo --strip-components=1 &&
+              rm -rf ~/brummy-linux.antigo &&
+              { [ -e ~/brummy-linux ] && mv ~/brummy-linux ~/brummy-linux.antigo || true; } &&
+              mv ~/brummy-linux.novo ~/brummy-linux &&
+              echo "  recebido em ~/brummy-linux ($(ls ~/brummy-linux | wc -l) itens no topo)"'
+    echo ""
+    echo "Na VM agora:  cd ~/brummy-linux && ./install.sh"
     ;;
 
   ssh)
