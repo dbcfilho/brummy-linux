@@ -83,3 +83,39 @@ command = "tuigreet --cmd start-hyprland --remember --remember-session --asteris
 
 Chamar o binário `Hyprland` direto ainda funciona, mas a sessão abre avisando
 `Hyprland was started without start-hyprland`.
+
+## Lições do primeiro teste real (14/09/2026)
+
+O `hyprland --verify-config` na VM pegou um erro que nenhuma checagem local
+tinha pego:
+
+```
+/home/dbrum/.config/hypr/hyprland.lua:34: attempt to call a nil value (field 'print')
+```
+
+**`hl.print` não existe** no runtime do Hyprland 0.56.2. A função tinha vindo de
+uma referência de API não-oficial; o `print` normal do Lua funciona e aparece no
+log marcado como `[Lua]`. O logger do Brummy agora testa antes de chamar.
+
+Duas coisas para levar adiante:
+
+1. **Referência de API só a oficial.** O arquivo de exemplo do próprio Hyprland
+   (`example/hyprland.lua` no repo deles) é a fonte confiável. Tudo que veio de
+   lá funcionou; o único item que veio de fora foi justamente o que quebrou.
+2. **O `--verify-config` não entra no callback do `hl.on("hyprland.start")`.**
+   Ele valida o corpo do arquivo, não o autostart, que só roda no login. Por
+   isso os comandos de autostart agora vão cada um dentro de `pcall`: um erro
+   ali derrubava a sessão inteira sem aviso prévio na verificação.
+
+Resultado depois do conserto, com os módulos de perfil ausentes (esperado, sem
+`./install.sh`):
+
+```
+DEBUG ]: [Lua] [brummy] módulo profile-monitors não encontrado (rode ./install.sh)
+DEBUG ]: [Lua] [brummy] módulo profile-gpu não encontrado (rode ./install.sh)
+======== Config parsing result:
+config ok
+```
+
+**`config ok`** — os 19 erros do primeiro boot morreram e a migração para Lua
+está validada contra a versão real.

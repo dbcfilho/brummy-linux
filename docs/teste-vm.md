@@ -97,3 +97,36 @@ Enquanto testa, vale anotar: quanto tempo levou o `install.sh`, quais pacotes o
 pacman/AUR pulou (ele imprime `[brummy] pacman pulou: X`), e o que ficou feio
 mas não quebrado. É essa lista que vira a v1.2 — e é ela que decide o que entra
 na ISO.
+
+## GNOME Boxes não serve para isto
+
+O primeiro teste de verdade (14/09/2026) travou menos no Brummy e mais no Boxes:
+
+- **Teclado embaralhado.** Digitar virava `9;9u9;9u9;9u...` na tela. O Boxes
+  manda teclas por SPICE assumindo o mapa do convidado, e com ABNT2 isso vira
+  ruído. Nem `sudo localectl set-keymap br-abnt2` resolve, porque o problema
+  está na camada de transporte, não no convidado.
+- **Sem controle de vídeo.** Não dá para ligar aceleração 3D nem escolher o
+  modelo de GPU virtual. Testar um compositor Wayland assim é testar no escuro.
+- **Transferência de arquivo na unha.** Meia hora de `scp` arquivo por arquivo.
+
+Use o `tools/vm.sh`, que é QEMU direto com as opções que importam
+(`virtio-vga-gl` + `gtk,gl=on` para 3D de verdade, scancode cru para o teclado
+funcionar, SSH na porta 2222):
+
+```bash
+./tools/vm.sh criar                       # cria o disco uma vez
+./tools/vm.sh iso ~/Downloads/archlinux.iso
+./tools/vm.sh rodar                       # depois de instalado
+./tools/vm.sh ssh                         # entra sem mexer na janela
+```
+
+E pare de usar `scp`: com o repo no GitHub, dentro da VM é
+
+```bash
+git clone https://github.com/dbcfilho/brummy-linux.git   # uma vez
+cd brummy-linux && git pull && ./install.sh              # a cada rodada
+```
+
+Se preferir interface gráfica, o **virt-manager** (`sudo apt install
+virt-manager`) dá os mesmos controles do QEMU numa janela — só o Boxes que não.

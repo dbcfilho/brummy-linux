@@ -79,6 +79,7 @@ brummy-linux/
   themes/wallpapers/    # papéis de parede padrão
   boot/                 # tema Plymouth + gerador de assets + fundo GRUB
   iso/                  # ISO live com Calamares (archiso rodando em Docker)
+  tools/vm.sh           # VM de teste em QEMU (o Boxes não dá conta)
   docs/                 # profiles, dev, boot, teste-vm, hyprland-lua
 ```
 
@@ -88,7 +89,9 @@ brummy-linux/
 - [x] v1.1 — primeiro boot em VM analisado: config migrada para Lua (Hyprland 0.57
       aposenta o `.conf`), wallpaper/GTK escuro/cursor corrigidos, Waybar que não
       deixa buraco em máquina sem GPU, launcher sem apps parasitas
-- [ ] v1.2 — teste em VM validado de ponta a ponta
+- [x] v1.1a — `hyprland --verify-config` na VM: **config ok** (a migração Lua
+      está validada; `hl.print` não existia e foi corrigido)
+- [ ] v1.2 — `./install.sh` completo validado de ponta a ponta
 - [ ] v1.3 — ISO live (esqueleto pronto em `iso/`, falta a primeira build)
 - [ ] futuro: LFS / kernel próprio pra aprender (separado deste repo)
 

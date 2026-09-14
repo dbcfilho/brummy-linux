@@ -20,6 +20,14 @@ local launcher     = "wofi --show drun --allow-images"
 -------------------------------------------------------------------------
 -- install.sh cria os links modules/profile-monitors.lua e profile-gpu.lua
 -- apontando para o perfil detectado (desktop / thinkpad / general).
+-- Logger à prova de nil: a tabela `hl` do runtime não tem função `print`.
+local function brummy_log(msg)
+  if hl ~= nil and hl.print ~= nil then
+    hl.print(msg)
+  elseif print ~= nil then
+    print(msg)
+  end
+end
 local function brummy_module(name)
   -- Tenta o require normal; se o package.path não incluir ~/.config/hypr,
   -- carrega pelo caminho absoluto. Ausência de módulo nunca derruba a sessão.
@@ -29,9 +37,9 @@ local function brummy_module(name)
   local chunk = loadfile(home .. "/.config/hypr/modules/" .. name .. ".lua")
   if chunk then
     local ran, err = pcall(chunk)
-    if not ran then hl.print("[brummy] módulo " .. name .. " falhou: " .. tostring(err)) end
+    if not ran then brummy_log("[brummy] módulo " .. name .. " falhou: " .. tostring(err)) end
   else
-    hl.print("[brummy] módulo " .. name .. " não encontrado (rode ./install.sh)")
+    brummy_log("[brummy] módulo " .. name .. " não encontrado (rode ./install.sh)")
   end
 end
 
@@ -45,17 +53,31 @@ brummy_module("trackpoint")
 -- ~/.local/bin nem sempre está no PATH da sessão gráfica: chama pelo caminho.
 local localBin = (os.getenv("HOME") or "") .. "/.local/bin/"
 
-hl.on("hyprland.start", function()
-  hl.exec_cmd("waybar")
-  hl.exec_cmd("hyprpaper")
+-- ATENÇÃO: `hyprland --verify-config` NÃO entra neste callback — ele só roda
+-- quando a sessão sobe de verdade. Um erro aqui dentro passa batido na
+-- verificação e só aparece na hora do login (foi assim que o hl.print
+-- inexistente escapou). Por isso cada comando vai dentro de pcall: nenhum
+-- autostart pode impedir a sessão de subir.
+local autostart = {
+  "waybar",
+  "hyprpaper",
   -- Aplica o wallpaper do Brummy via IPC (resolve o link ~/Pictures/Brummy/current)
-  hl.exec_cmd(localBin .. "brummy-wallpaper-apply")
-  hl.exec_cmd("nwg-dock-hyprland -d -mb 12 -i 48 -w 6 -hotspot_delay 150 -cursor_insert")
-  hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
-  hl.exec_cmd("wl-paste --watch cliphist store")
-  hl.exec_cmd("udiskie --tray")
+  localBin .. "brummy-wallpaper-apply",
+  "nwg-dock-hyprland -d -mb 12 -i 48 -w 6 -hotspot_delay 150 -cursor_insert",
+  "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
+  "wl-paste --watch cliphist store",
+  "udiskie --tray",
   -- Cursor do Brummy também para apps XWayland/GTK
-  hl.exec_cmd("hyprctl setcursor Bibata-Modern-Ice 28")
+  "hyprctl setcursor Bibata-Modern-Ice 28",
+}
+
+hl.on("hyprland.start", function()
+  for _, cmd in ipairs(autostart) do
+    local ok, err = pcall(hl.exec_cmd, cmd)
+    if not ok then
+      brummy_log("[brummy] autostart falhou: " .. cmd .. " — " .. tostring(err))
+    end
+  end
 end)
 
 -------------------------------------------------------------------------
