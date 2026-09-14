@@ -21,7 +21,7 @@ Brummy Linux — comandos:
 
 Atalhos Hyprland (híbrido):
   SUPER+D ou clique no   launcher com ícones (wofi drun)
-  SUPER+Q  terminal (kitty)
+  SUPER+Q ou SUPER+ENTER  terminal (kitty, com fallback)
   SUPER+E  arquivos (nautilus)
   SUPER+L  lock screen
   SUPER+1..9 workspaces | SUPER+SHIFT+1..9 mover janela

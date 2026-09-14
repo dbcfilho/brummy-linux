@@ -9,7 +9,10 @@
 local mainMod = "SUPER"
 
 -- Programas padrão (troque aqui, os binds seguem sozinhos)
-local terminal     = "kitty"
+-- Cadeia de fallback de propósito: ficar sem terminal é ficar sem saída.
+-- Se o kitty não estiver instalado (ou não subir, por GL faltando na VM),
+-- o próximo da fila abre. xterm por último porque roda em qualquer lugar.
+local terminal     = "kitty || foot || alacritty || wezterm || xterm"
 local fileManager  = "nautilus || thunar"
 local browser      = "helium-browser || helium || firefox"
 local editor       = "codium || code"
@@ -220,6 +223,9 @@ hl.window_rule({ name = "brummy-jogos",
 -- ATALHOS (ver `brummy apps`) ------------------------------------------
 -------------------------------------------------------------------------
 hl.bind(mainMod .. " + Q",         hl.dsp.exec_cmd(terminal),    { description = "Terminal" })
+-- Mesma coisa no RETURN: é o atalho que a maioria dos tilings usa, e quem vem
+-- de outro WM tenta ele primeiro. Dois caminhos para a mesma saída de emergência.
+hl.bind(mainMod .. " + RETURN",    hl.dsp.exec_cmd(terminal),    { description = "Terminal" })
 hl.bind(mainMod .. " + E",         hl.dsp.exec_cmd(fileManager), { description = "Arquivos" })
 hl.bind(mainMod .. " + B",         hl.dsp.exec_cmd(browser),     { description = "Navegador" })
 hl.bind(mainMod .. " + SHIFT + C", hl.dsp.exec_cmd(editor),      { description = "Editor" })

@@ -152,6 +152,27 @@ cd brummy-linux && git pull && ./install.sh              # a cada rodada
 Se preferir interface gráfica, o **virt-manager** (`sudo apt install
 virt-manager`) dá os mesmos controles do QEMU numa janela — só o Boxes que não.
 
+### Não consigo abrir um terminal na VM
+
+Não fique preso na janela. Em ordem de garantia:
+
+1. **SSH do host** — não depende de atalho nenhum dentro da VM:
+   ```bash
+   ./tools/vm.sh ssh
+   ```
+   (precisa de `sudo systemctl enable --now sshd` uma vez, na VM)
+2. **Ctrl+Alt+F2** abre um TTY de texto; Ctrl+Alt+F1 volta para a sessão.
+3. **SUPER+Q** ou **SUPER+ENTER** dentro da sessão — os dois abrem o terminal,
+   com cadeia de fallback (kitty → foot → alacritty → wezterm → xterm).
+
+Se nem SUPER+Q nem SUPER+ENTER funcionam, o atalho não está chegando ou o
+terminal não está instalado. Pelo SSH, isso separa os dois casos:
+
+```bash
+hyprctl binds | grep -A5 -i 'kitty\|SUPER, Q'   # o bind existe?
+command -v kitty foot alacritty xterm            # tem algum terminal?
+```
+
 ### SUPER+alguma coisa aciona o host em vez da VM
 
 A VM abriu, o Hyprland rodou, mas `SUPER+C` abre a dock do Debian. São duas
