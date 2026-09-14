@@ -11,11 +11,13 @@
 #   ./tools/vm.sh achar            procura discos de VM que você já tem
 #   ./tools/vm.sh criar            cria um disco novo (25G, qcow2)
 #   ./tools/vm.sh iso arquivo.iso  boota uma ISO (instalar Arch / testar a ISO do Brummy)
-#   ./tools/vm.sh rodar            boota o disco instalado
+#   ./tools/vm.sh overlay disco    boota um disco existente SEM escrever nele
+#   ./tools/vm.sh rodar [disco]    boota o disco instalado
 #   ./tools/vm.sh ssh              entra por SSH na VM (porta 2222)
 #
 # Para reaproveitar a VM que já existe no Boxes, sem reinstalar nada:
-#   BRUMMY_VM_DISK=~/.local/share/gnome-boxes/images/brummy ./tools/vm.sh rodar
+#   ./tools/vm.sh achar            → mostra o comando pronto, com o caminho certo
+# Feche a VM no Boxes antes: dois QEMU no mesmo disco corrompem a imagem.
 #
 # Variáveis: BRUMMY_VM_DISK, BRUMMY_VM_DIR, BRUMMY_VM_RAM (4096),
 #            BRUMMY_VM_CPUS (4), BRUMMY_VM_SIZE (25G), BRUMMY_VM_GL (1)
@@ -104,7 +106,7 @@ DEPS
 
   achar)
     echo "Discos de VM encontrados nesta máquina:"
-    found=0
+    found=0; FOUND_FILES=()
     for d in "$HOME/.local/share/gnome-boxes/images" \
              "$HOME/.var/app/org.gnome.Boxes/data/gnome-boxes/images" \
              "/var/lib/libvirt/images" "$HOME/.local/share/libvirt/images" \
@@ -112,13 +114,21 @@ DEPS
       [[ -d "$d" ]] || continue
       while IFS= read -r f; do
         printf '  %-10s %s\n' "$(du -h "$f" 2>/dev/null | cut -f1)" "$f"
-        found=1
+        FOUND_FILES+=("$f"); found=1
       done < <(find "$d" -maxdepth 2 -type f \( -name '*.qcow2' -o -name '*.img' -o ! -name '*.*' \) -size +100M 2>/dev/null)
     done
     [[ "$found" == 1 ]] || { echo "  (nenhum)"; exit 0; }
     echo ""
-    echo "Para bootar um deles direto, sem reinstalar:"
-    echo "  BRUMMY_VM_DISK=<caminho> ./tools/vm.sh rodar"
+    echo "Para bootar sem reinstalar — copie e cole uma destas linhas:"
+    echo "(feche a VM no Boxes antes: dois QEMU no mesmo disco corrompem a imagem)"
+    echo ""
+    for f in "${FOUND_FILES[@]}"; do
+      printf '  ./tools/vm.sh overlay %q\n' "$f"
+    done
+    echo ""
+    echo "O 'overlay' cria um disco novo que aponta para esse, então a VM"
+    echo "original do Boxes nunca é escrita. Para mexer no disco original"
+    echo "mesmo, troque 'overlay' por 'rodar'."
     ;;
 
   criar)
@@ -147,6 +157,7 @@ DEPS
   rodar)
     command -v qemu-system-x86_64 &>/dev/null || die "falta qemu-system-x86_64 — veja: ./tools/vm.sh deps"
     check_kvm
+    [[ -n "${2:-}" ]] && DISK="$2"
     [[ -f "$DISK" ]] || die "disco não encontrado: $DISK (veja ./tools/vm.sh achar)"
     build_args
     FW="$(uefi_firmware)"
@@ -154,6 +165,30 @@ DEPS
     [[ -n "$FW" ]] && qemu_args+=(-drive "if=pflash,format=raw,readonly=on,file=$FW")
     echo "==> bootando $DISK (SSH em 127.0.0.1:$SSH_PORT)"
     exec qemu-system-x86_64 "${qemu_args[@]}"
+    ;;
+
+  overlay)
+    command -v qemu-img &>/dev/null || die "falta qemu-img — veja: ./tools/vm.sh deps"
+    BASE="${2:-}"
+    [[ -f "$BASE" ]] || die "uso: ./tools/vm.sh overlay <disco-base>  (veja ./tools/vm.sh achar)"
+    BASE="$(readlink -f "$BASE")"
+    FMT="$(qemu-img info "$BASE" 2>/dev/null | awk -F': ' '/^file format:/ { print $2; exit }')"
+    [[ -n "$FMT" ]] || die "não consegui ler o formato de $BASE (é mesmo um disco de VM?)"
+    mkdir -p "$VM_DIR"
+    OVL="$VM_DIR/$(basename "$BASE")-overlay.qcow2"
+    if [[ -f "$OVL" ]]; then
+      echo "overlay já existe: $OVL"
+    else
+      qemu-img create -f qcow2 -b "$BASE" -F "$FMT" "$OVL" >/dev/null
+      echo "overlay criado: $OVL"
+      echo "  base (nunca é escrita): $BASE [$FMT]"
+    fi
+    echo ""
+    echo "Bootando. Da próxima vez, direto:  ./tools/vm.sh rodar $OVL"
+    echo "Para recomeçar do zero, apague o overlay e rode este comando de novo."
+    echo "(o overlay depende do disco base — se você apagar a VM no Boxes, ele para de funcionar)"
+    echo ""
+    exec "$0" rodar "$OVL"
     ;;
 
   ssh)
