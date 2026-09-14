@@ -80,6 +80,7 @@ brummy-linux/
   boot/                 # tema Plymouth + gerador de assets + fundo GRUB
   iso/                  # ISO live com Calamares (archiso rodando em Docker)
   tools/vm.sh           # VM de teste em QEMU (o Boxes não dá conta)
+  tools/check.sh        # checagem local antes de levar pra VM
   docs/                 # profiles, dev, boot, teste-vm, hyprland-lua
 ```
 

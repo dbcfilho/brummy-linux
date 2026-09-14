@@ -31,6 +31,7 @@
 # Dentro da VM o host é 10.0.2.2, então `git pull` e `scp` continuam valendo.
 set -euo pipefail
 
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VM_DIR="${BRUMMY_VM_DIR:-$HOME/VMs/brummy}"
 DISK="${BRUMMY_VM_DISK:-$VM_DIR/brummy.qcow2}"
 DISK_SIZE="${BRUMMY_VM_SIZE:-25G}"
