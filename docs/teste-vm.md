@@ -130,3 +130,25 @@ cd brummy-linux && git pull && ./install.sh              # a cada rodada
 
 Se preferir interface gráfica, o **virt-manager** (`sudo apt install
 virt-manager`) dá os mesmos controles do QEMU numa janela — só o Boxes que não.
+
+### Parou em ">>Start PXE over IPv4"?
+
+É o firmware errado para aquele disco, não um disco quebrado. Um sistema
+instalado em BIOS legado não boota em UEFI, e vice-versa: o firmware não acha
+bootloader nenhum e cai no boot por rede. A tela mostra antes:
+
+```
+BdsDxe: failed to load Boot0001 "UEFI Misc Device" ... : Not Found
+>>Start PXE over IPv4.
+```
+
+O `tools/vm.sh` usa BIOS no `rodar` (é como o GNOME Boxes instala) e UEFI no
+`iso` (instalação nova). Para inverter:
+
+```bash
+BRUMMY_VM_UEFI=1 ./tools/vm.sh rodar <disco>    # força UEFI
+BRUMMY_VM_UEFI=0 ./tools/vm.sh iso <arquivo>    # força BIOS
+```
+
+Para descobrir em qual modo uma VM do Boxes foi instalada, olhe a primeira tela
+do boot dela: **SeaBIOS** = BIOS legado, **TianoCore** = UEFI.

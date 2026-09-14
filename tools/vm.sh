@@ -20,7 +20,12 @@
 # Feche a VM no Boxes antes: dois QEMU no mesmo disco corrompem a imagem.
 #
 # Variáveis: BRUMMY_VM_DISK, BRUMMY_VM_DIR, BRUMMY_VM_RAM (4096),
-#            BRUMMY_VM_CPUS (4), BRUMMY_VM_SIZE (25G), BRUMMY_VM_GL (1)
+#            BRUMMY_VM_CPUS (4), BRUMMY_VM_SIZE (25G), BRUMMY_VM_GL (1),
+#            BRUMMY_VM_UEFI (rodar=0, iso=1)
+#
+# Parou em ">>Start PXE over IPv4"? É o firmware errado para este disco.
+# Um disco instalado em BIOS não boota em UEFI, e vice-versa. Inverta:
+#   BRUMMY_VM_UEFI=1 ./tools/vm.sh rodar <disco>
 #
 # Dentro da VM o host é 10.0.2.2, então `git pull` e `scp` continuam valendo.
 set -euo pipefail
@@ -81,11 +86,48 @@ build_args() {
   fi
 }
 
-uefi_firmware() {
-  for f in /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd /usr/share/ovmf/OVMF.fd; do
+# Firmware. Isto NÃO se adivinha pelo disco: um disco instalado em BIOS não
+# boota em UEFI e vice-versa. Sintoma do modo errado: a tela para em
+# "BdsDxe: failed to load Boot0001" e cai em ">>Start PXE over IPv4".
+# Padrão: BIOS no `rodar` (é como o Boxes instala), UEFI no `iso` (instalação nova).
+uefi_code() {
+  for f in /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd \
+           /usr/share/OVMF/OVMF_CODE.secboot.fd /usr/share/ovmf/OVMF.fd; do
     [[ -f "$f" ]] && { echo "$f"; return; }
   done
   echo ""
+}
+
+# O UEFI precisa de um espaço gravável para as variáveis de boot. Sem isso o
+# firmware esquece onde está o bootloader a cada reinício.
+uefi_vars() {
+  local dst="$VM_DIR/OVMF_VARS.fd"
+  [[ -f "$dst" ]] && { echo "$dst"; return; }
+  for t in /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd /usr/share/ovmf/OVMF_VARS.fd; do
+    [[ -f "$t" ]] && { mkdir -p "$VM_DIR"; cp "$t" "$dst"; echo "$dst"; return; }
+  done
+  echo ""
+}
+
+# $1 = modo padrão deste comando (bios|uefi). BRUMMY_VM_UEFI=1/0 manda mais.
+add_firmware() {
+  local modo="${BRUMMY_VM_UEFI:+x}"
+  if [[ -n "$modo" ]]; then
+    [[ "$BRUMMY_VM_UEFI" == "1" ]] && modo="uefi" || modo="bios"
+  else
+    modo="$1"
+  fi
+
+  if [[ "$modo" == "bios" ]]; then
+    echo "  firmware: BIOS legado (SeaBIOS). Se parar em '>>Start PXE over IPv4', esta VM é UEFI: BRUMMY_VM_UEFI=1" >&2
+    return
+  fi
+
+  local code vars; code="$(uefi_code)"; vars="$(uefi_vars)"
+  [[ -n "$code" ]] || die "UEFI pedido mas não achei o OVMF — sudo apt install ovmf"
+  qemu_args+=(-drive "if=pflash,format=raw,readonly=on,file=$code")
+  [[ -n "$vars" ]] && qemu_args+=(-drive "if=pflash,format=raw,file=$vars")
+  echo "  firmware: UEFI (OVMF). Se parar em '>>Start PXE over IPv4', esta VM é BIOS: BRUMMY_VM_UEFI=0" >&2
 }
 
 case "${1:-help}" in
@@ -147,10 +189,9 @@ DEPS
     [[ -f "$ISO" ]] || die "uso: ./tools/vm.sh iso <arquivo.iso>"
     [[ -f "$DISK" ]] || die "sem disco — rode ./tools/vm.sh criar"
     build_args
-    FW="$(uefi_firmware)"
     qemu_args+=(-drive "file=$DISK,if=virtio,format=qcow2" -cdrom "$ISO" -boot order=d)
-    [[ -n "$FW" ]] && qemu_args+=(-drive "if=pflash,format=raw,readonly=on,file=$FW")
-    echo "==> bootando $ISO (UEFI: ${FW:-não achei OVMF, indo de BIOS legado})"
+    echo "==> bootando $ISO"
+    add_firmware uefi
     exec qemu-system-x86_64 "${qemu_args[@]}"
     ;;
 
@@ -160,10 +201,9 @@ DEPS
     [[ -n "${2:-}" ]] && DISK="$2"
     [[ -f "$DISK" ]] || die "disco não encontrado: $DISK (veja ./tools/vm.sh achar)"
     build_args
-    FW="$(uefi_firmware)"
     qemu_args+=(-drive "file=$DISK,if=virtio,format=qcow2" -boot order=c)
-    [[ -n "$FW" ]] && qemu_args+=(-drive "if=pflash,format=raw,readonly=on,file=$FW")
     echo "==> bootando $DISK (SSH em 127.0.0.1:$SSH_PORT)"
+    add_firmware bios
     exec qemu-system-x86_64 "${qemu_args[@]}"
     ;;
 
