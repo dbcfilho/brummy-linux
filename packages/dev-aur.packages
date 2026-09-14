@@ -1,0 +1,3 @@
+# Brummy Linux — dev AUR (instalado com paru/yay, com || true pra não travar)
+# Postman espelha o flatpak da máquina Debian.
+postman-bin

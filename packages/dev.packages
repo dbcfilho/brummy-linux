@@ -1,0 +1,44 @@
+# Brummy Linux — dev bundle (pacman oficial)
+# Espelha a máquina Debian do dbrum: Java 25 (Temurin via SDKMAN lá) + Node 24 + Python 3.13 + Docker + Postgres 17 + clients MySQL/SQLite.
+# No Arch: JDK latest + LTS, Maven/Gradle, Node LTS, Python + uv, DBs, kubectl/k9s, adb/fastboot.
+
+# --- Java (latest + LTS p/ compat; mise gerencia por projeto) ---
+jdk-openjdk
+jdk21-openjdk
+maven
+gradle
+
+# --- Node / Python ---
+nodejs
+npm
+python
+python-pip
+python-virtualenv
+uv
+
+# --- DBs: server local (igual pg 17 no Debian) + clients ---
+postgresql
+mariadb-clients
+sqlite
+redis
+
+# --- containers / k8s (docker já vem no base) ---
+kubectl
+k9s
+kustomize
+helm
+
+# --- mobile / usb ---
+android-tools
+android-udev
+scrcpy
+
+# --- API / http ---
+httpie
+
+# --- git extras (git + gh + lazygit já no base) ---
+git-delta
+direnv
+
+# --- DB GUI ---
+dbeaver

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# brummy-wallpaper-apply — aplica o wallpaper atual em todos os monitores.
+# Resolve ~/Pictures/Brummy/current (link) para o arquivo real, porque o
+# hyprpaper decide o decodificador pela extensão do arquivo.
+# Uso: brummy-wallpaper-apply [caminho-da-imagem]
+set -uo pipefail
+
+WDIR="$HOME/Pictures/Brummy"
+IMG="${1:-$WDIR/current}"
+IMG="$(readlink -f "$IMG" 2>/dev/null || echo "$IMG")"
+
+if [[ ! -f "$IMG" ]]; then
+  echo "[brummy] sem wallpaper em $WDIR (rode ./install.sh)" >&2
+  exit 0
+fi
+
+# hyprpaper pode ainda estar subindo no login: espera o socket IPC aparecer.
+for _ in $(seq 1 20); do
+  hyprctl hyprpaper listloaded &>/dev/null && break
+  sleep 0.25
+done
+
+hyprctl hyprpaper unload all &>/dev/null || true
+if ! hyprctl hyprpaper preload "$IMG" &>/dev/null; then
+  echo "[brummy] hyprpaper não respondeu (ipc = on em hyprpaper.conf?)" >&2
+  exit 0
+fi
+
+monitors="$(hyprctl -j monitors 2>/dev/null | grep -oP '"name":\s*"\K[^"]+' || true)"
+if [[ -z "$monitors" ]]; then
+  hyprctl hyprpaper wallpaper ",$IMG" &>/dev/null || true
+else
+  while read -r m; do
+    [[ -z "$m" ]] && continue
+    hyprctl hyprpaper wallpaper "$m,$IMG" &>/dev/null || true
+  done <<< "$monitors"
+fi
+echo "[brummy] wallpaper: $(basename "$IMG")"

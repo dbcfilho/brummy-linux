@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Atalho do desktop live: abre o instalador gráfico.
+exec sudo -E calamares -D6

@@ -1,0 +1,124 @@
+# Brummy Plymouth — logo com halo respirando + dots + barra de progresso
+# Fundo escuro igual o da logo; a "luz carregando" é o glow pulsando (SetRefreshFunction).
+
+Window.SetBackgroundTopColor (0.02, 0.02, 0.04);
+Window.SetBackgroundBottomColor (0.04, 0.04, 0.08);
+
+screen_w = Window.GetWidth ();
+screen_h = Window.GetHeight ();
+
+# --- logo central (altura = 42% da tela, proporção mantida) ---
+logo_img = Image ("logo.png");
+logo_scale = (screen_h * 0.42) / logo_img.GetHeight ();
+logo_w = logo_img.GetWidth () * logo_scale;
+logo_h = logo_img.GetHeight () * logo_scale;
+logo_img = logo_img.Scale (logo_w, logo_h);
+logo_x = (screen_w - logo_w) / 2;
+logo_y = (screen_h - logo_h) / 2 - screen_h * 0.04;
+
+# --- halo (mesma escala da logo; glow.png já é 1.6x o canvas) ---
+glow_img = Image ("glow.png");
+glow_img = glow_img.Scale (logo_w, logo_h);
+glow_w = logo_w;
+glow_h = logo_h;
+glow_x = logo_x;
+glow_y = logo_y;
+glow_sprite = Sprite (glow_img);
+glow_sprite.SetPosition (glow_x, glow_y, 1);
+
+logo_sprite = Sprite (logo_img);
+logo_sprite.SetPosition (logo_x, logo_y, 2);
+
+# --- dots de loading (5, abaixo da logo) ---
+dot_img = Image ("dot.png");
+dot_n = 5;
+dot_gap = 40;
+dots_y = logo_y + logo_h + 44;
+dot_sprites = [];
+i = 0;
+while (i < dot_n) {
+  s = Sprite (dot_img);
+  s.SetPosition ((screen_w - (dot_n - 1) * dot_gap) / 2 + i * dot_gap - 14, dots_y, 3);
+  dot_sprites[i] = s;
+  i++;
+}
+
+# --- barra de progresso (440px, abaixo dos dots) ---
+bar_w = 440;
+bar_bg = Sprite (Image ("bar-bg.png"));
+bar_bg.SetPosition ((screen_w - bar_w) / 2, dots_y + 52, 3);
+bar_fill_img = Image ("bar-fill.png");
+bar_fill = Sprite (bar_fill_img);
+bar_fill.SetPosition ((screen_w - bar_w) / 2, dots_y + 52, 4);
+boot_progress = 0;
+
+# --- mensagem (texto do sistema, ex: senha) ---
+msg_sprite = Sprite (dot_img);
+msg_sprite.SetOpacity (0);
+msg_sprite.SetPosition (screen_w / 2, dots_y + 92, 5);
+
+fun progress_callback (duration, progress) {
+  if (progress > boot_progress)
+    boot_progress = progress;
+}
+
+fun message_callback (text) {
+  msg_img = Image.Text (text, 1, 1, 1, null);
+  msg_sprite.SetImage (msg_img);
+  msg_sprite.SetOpacity (1);
+  msg_sprite.SetPosition (screen_w / 2 - msg_img.GetWidth () / 2, dots_y + 92, 5);
+}
+
+fun refresh_callback () {
+  t = Plymouth.GetTime ();
+  breathe = 0.5 + 0.5 * Math.Sin (t * 2.2);
+  glow_sprite.SetOpacity (0.22 + 0.22 * breathe);
+  logo_sprite.SetOpacity (0.90 + 0.10 * breathe);
+
+  active = Math.Floor (t * 5) % dot_n;
+  i = 0;
+  while (i < dot_n) {
+    if (i == active)
+      dot_sprites[i].SetOpacity (1);
+    else if (i == (active + dot_n - 1) % dot_n)
+      dot_sprites[i].SetOpacity (0.55);
+    else
+      dot_sprites[i].SetOpacity (0.25);
+    i++;
+  }
+
+  if (boot_progress > 0) {
+    bar_bg.SetOpacity (1);
+    bar_fill.SetOpacity (1);
+    bar_fill.SetClip ((screen_w - bar_w) / 2, dots_y + 52, boot_progress * bar_w, 10);
+  } else {
+    bar_bg.SetOpacity (0.35);
+    bar_fill.SetOpacity (0);
+  }
+}
+
+fun quit_callback () {
+  glow_sprite.SetOpacity (0);
+  logo_sprite.SetOpacity (0);
+  i = 0;
+  while (i < dot_n) { dot_sprites[i].SetOpacity (0); i++; }
+  bar_bg.SetOpacity (0);
+  bar_fill.SetOpacity (0);
+  msg_sprite.SetOpacity (0);
+}
+
+fun display_normal_callback () {
+  refresh_callback ();
+}
+
+fun display_password_callback (prompt, bullets) {
+  message_callback (prompt);
+  refresh_callback ();
+}
+
+Plymouth.SetBootProgressFunction (progress_callback);
+Plymouth.SetMessageFunction (message_callback);
+Plymouth.SetRefreshFunction (refresh_callback);
+Plymouth.SetQuitFunction (quit_callback);
+Plymouth.SetDisplayNormalFunction (display_normal_callback);
+Plymouth.SetDisplayPasswordFunction (display_password_callback);

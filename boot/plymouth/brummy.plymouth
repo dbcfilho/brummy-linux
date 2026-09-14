@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Brummy
+Description=Brummy Linux — logo com luz pulsante de carregamento
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/brummy/assets
+ScriptFile=/usr/share/plymouth/themes/brummy/brummy.script

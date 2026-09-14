@@ -1,0 +1,34 @@
+---
+componentName: brummy
+
+welcomeStyleCalamares: true
+welcomeExpandingLogo: true
+
+windowExpanding: normal
+windowSize: 920px,560px
+windowPlacement: center
+
+strings:
+  productName:         Brummy Linux
+  shortProductName:    Brummy
+  version:             v1.1
+  shortVersion:        v1.1
+  versionedName:       Brummy Linux v1.1
+  shortVersionedName:  Brummy v1.1
+  bootloaderEntryName: Brummy
+  productUrl:          https://github.com/dbcfilho/brummy-linux
+  supportUrl:          https://github.com/dbcfilho/brummy-linux/issues
+
+images:
+  productLogo:    "logo.png"
+  productIcon:    "logo.png"
+  productWelcome: "welcome.png"
+
+slideshow: "show.qml"
+slideshowAPI: 2
+
+style:
+  sidebarBackground:    "#101018"
+  sidebarText:          "#ffffff"
+  sidebarTextSelect:    "#0a84ff"
+  sidebarTextHighlight: "#1a1a24"

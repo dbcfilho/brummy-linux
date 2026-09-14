@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+
+# gerado pelo boot/make-assets.py (o logo.png é a única fonte versionada)
+boot/assets/.assets-ok
+
+# backups que o install.sh cria
+*.bak-brummy-*
+*.pre-lua-*
+
+# build da ISO
+iso/out/
+iso/work/
+*.iso
+
+# lixo de sistema
+.DS_Store
+*~
+
+# lixo temporário aguardando remoção manual
+_to_delete/

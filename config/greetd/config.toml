@@ -1,0 +1,12 @@
+# Brummy greetd — tela de login em texto (tuigreet), entra direto no Hyprland
+# Instalado por install.sh em /etc/greetd/config.toml
+#
+# start-hyprland (Hyprland 0.53+) é o jeito suportado de subir a sessão:
+# traz crash recovery e safe mode. Chamar o binário `Hyprland` direto gera o
+# aviso "Hyprland was started without start-hyprland" e perde essas proteções.
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --cmd start-hyprland --remember --remember-session --asterisks --time --greeting 'Brummy Linux'"
+user = "greeter"

@@ -1,0 +1,22 @@
+# Brummy Linux — perfil laptop / ThinkPad T430 (pacman oficial)
+# T430 = Ivy Bridge + Intel HD 4000 (sem Vulkan nativo, usa lavapipe do mesa) + bateria.
+# Desktop (Xeon + RX 6600 XT) NÃO instala isso — ver docs/profiles.md.
+
+# --- vídeo Intel HD 4000 (i965 VA-API; modesetting, sem xf86-video-intel) ---
+intel-media-driver
+libva-intel-driver
+vulkan-intel
+libva-utils
+
+# --- energia / térmico (ThinkPad clássico) ---
+tlp
+tlp-rdw
+powertop
+thermald
+thinkfan
+acpi
+acpid
+
+# --- wifi/bluetooth laptop (iwl4965/6205 no T430) ---
+iw
+wireless_tools

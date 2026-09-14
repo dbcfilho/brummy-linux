@@ -1,0 +1,61 @@
+# Brummy — apps que NÃO aparecem no launcher (wofi/SUPER+D).
+#
+# Não desinstala nada: cria um override com NoDisplay=true em
+# ~/.local/share/applications. São .desktop que vêm de dependência
+# (avahi, gpsd, v4l-utils, jdk, wine, Qt) e só poluem o menu.
+#
+# Formato: um padrão glob por linha, do nome do arquivo .desktop.
+# Para trazer um de volta: apague a linha e rode `brummy-hide-apps --undo`
+# seguido de `brummy-hide-apps`.
+
+# --- rede/descoberta (avahi, via gvfs) ---
+avahi-discover.desktop
+bssh.desktop
+bvnc.desktop
+
+# --- GPS (gpsd, via geoclue) ---
+xgps.desktop
+xgpsspeed.desktop
+
+# --- vídeo/câmera de teste (v4l-utils, via obs-studio) ---
+qv4l2.desktop
+qvidcap.desktop
+
+# --- Java: consoles e ferramentas do JDK ---
+jconsole*.desktop
+jshell*.desktop
+java-openjdk.desktop
+java*-openjdk.desktop
+policytool*.desktop
+
+# --- Qt SDK (via qt5-tools/qt6-tools) ---
+assistant*.desktop
+designer*.desktop
+linguist*.desktop
+qdbusviewer*.desktop
+qt*ct.desktop
+
+# --- Wine: o menu inteiro dele ---
+wine-*.desktop
+winetricks.desktop
+
+# --- utilitários de janela que só fazem sentido pelo app pai ---
+thunar-bulk-rename.desktop
+thunar-settings.desktop
+thunar-volman-settings.desktop
+org.gnome.Sushi.desktop
+
+# --- apps de terminal que não precisam de ícone (rode no kitty) ---
+nvim.desktop
+vim.desktop
+btop.desktop
+htop.desktop
+lstopo.desktop
+cmake-gui.desktop
+
+# --- duplicados / raramente úteis ---
+kitty-open.desktop
+libreoffice-math.desktop
+libreoffice-base.desktop
+libreoffice-xsltfilter.desktop
+electron*.desktop

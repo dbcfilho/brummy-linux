@@ -1,0 +1,83 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 32,
+  "margin-top": 8,
+  "margin-left": 12,
+  "margin-right": 12,
+  "modules-left": ["custom/apple", "hyprland/workspaces", "hyprland/window"],
+  "modules-center": ["clock"],
+  "modules-right": ["custom/claude", "cpu", "memory", "custom/gpu", "custom/temp", "tray", "pulseaudio", "network", "battery", "clock#date", "custom/power"],
+
+  "custom/apple": {
+    "format": "",
+    "tooltip": "Menu Brummy (SUPER+Espaço = Spotlight)",
+    "on-click": "wofi --show drun --allow-images"
+  },
+
+  "hyprland/workspaces": { "format": "{icon}", "on-click": "activate", "on-scroll-up": "hyprctl dispatch workspace e+1", "on-scroll-down": "hyprctl dispatch workspace e-1" },
+  "hyprland/window": { "format": "{title}", "max-length": 45, "separate-outputs": true },
+
+  "clock": { "format": "{:%a %d %b  %H:%M}", "tooltip-format": "{:%A %d/%m/%Y}" },
+  "clock#date": { "format": "", "tooltip-format": "<tt><small>{calendar}</small></tt>" },
+
+  "cpu": { "format": " {usage}%", "interval": 2, "on-click": "kitty -e btop" },
+  "memory": { "format": " {percentage}%", "interval": 5, "on-click": "kitty -e btop", "tooltip-format": "{used:0.1f}G/{total:0.1f}G" },
+
+  "//": "GPU/temperatura/claude são scripts que imprimem vazio quando não se aplicam — a Waybar esconde o módulo em vez de deixar buraco.",
+  "custom/gpu": {
+    "exec": "~/.config/waybar/scripts/gpu.sh",
+    "return-type": "json",
+    "format": "{}",
+    "interval": 3,
+    "tooltip": true,
+    "on-click": "command -v radeontop >/dev/null && kitty -e radeontop || kitty -e nvtop"
+  },
+  "custom/temp": {
+    "exec": "~/.config/waybar/scripts/temp.sh",
+    "return-type": "json",
+    "format": "{}",
+    "interval": 5,
+    "tooltip": true,
+    "on-click": "kitty -e btop"
+  },
+  "custom/claude": {
+    "exec": "~/.config/waybar/scripts/claude.sh",
+    "return-type": "json",
+    "format": "{}",
+    "interval": 300,
+    "signal": 13,
+    "tooltip": true,
+    "on-click": "xdg-open https://claude.ai/settings/usage"
+  },
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": "󰝟 mudo",
+    "format-icons": { "default": ["", "", ""] },
+    "on-click": "pavucontrol",
+    "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+    "on-scroll-up": "pactl set-sink-volume @DEFAULT_SINK@ +5%",
+    "on-scroll-down": "pactl set-sink-volume @DEFAULT_SINK@ -5%"
+  },
+
+  "network": {
+    "format-wifi": " {signalStrength}%",
+    "format-ethernet": "",
+    "format-disconnected": "󰤭",
+    "tooltip-format-wifi": "{essid} — {ipaddr}",
+    "tooltip-format-ethernet": "{ifname} — {ipaddr}",
+    "tooltip-format-disconnected": "sem rede",
+    "on-click": "nm-connection-editor"
+  },
+
+  "battery": {
+    "format": "{icon} {capacity}%",
+    "format-charging": " {capacity}%",
+    "format-icons": ["", "", "", "", ""],
+    "states": { "warning": 25, "critical": 10 }
+  },
+
+  "tray": { "spacing": 8 },
+  "custom/power": { "format": "⏻", "tooltip": "Desligar / sair", "on-click": "wlogout" }
+}

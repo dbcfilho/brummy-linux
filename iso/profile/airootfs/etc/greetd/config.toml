@@ -1,0 +1,13 @@
+# greetd do ambiente LIVE: entra direto no Hyprland como usuário "brummy",
+# sem senha, para a pessoa ver o sistema antes de instalar.
+# O sistema INSTALADO usa config/greetd/config.toml (com tuigreet e senha).
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --cmd start-hyprland --asterisks --time --greeting 'Brummy Linux — live'"
+user = "greeter"
+
+[initial_session]
+command = "start-hyprland"
+user = "brummy"

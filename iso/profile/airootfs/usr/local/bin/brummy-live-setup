@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Roda uma vez no boot do live: cria o usuário da sessão ao vivo e deixa o
+# Brummy pronto para ser visto ANTES de instalar. Quem instala é o Calamares.
+set -uo pipefail
+
+LIVE_USER="brummy"
+
+id "$LIVE_USER" &>/dev/null || {
+  useradd -m -G wheel,video,audio,input,storage -s /bin/bash "$LIVE_USER"
+  passwd -d "$LIVE_USER"
+}
+echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/00-brummy-live
+chmod 0440 /etc/sudoers.d/00-brummy-live
+
+# Camada de usuário do Brummy (configs, tema, helpers) — sem tocar em pacotes.
+if [[ -d /opt/brummy-linux ]]; then
+  sudo -u "$LIVE_USER" -H bash -c 'cd /opt/brummy-linux && ./install.sh --user-only' || true
+fi

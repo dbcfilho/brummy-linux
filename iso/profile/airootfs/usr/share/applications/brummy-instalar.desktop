@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Instalar o Brummy Linux
+Comment=Instala o sistema no disco com o Calamares
+Exec=/usr/local/bin/brummy-instalar
+Icon=/usr/share/brummy/logo.png
+Terminal=false
+Categories=System;

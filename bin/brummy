@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+# brummy - helper descobrível (a parte "tradicional" do híbrido)
+# Uso: brummy help | update | theme | apps
+set -euo pipefail
+REPO_DIR="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+
+cmd="${1:-help}"
+case "$cmd" in
+  help|--help|-h)
+    cat <<'EOF'
+Brummy Linux — comandos:
+
+  brummy help     mostra isso (descobrível, sem decorar)
+  brummy update   atualiza sistema + repuxa links do repo
+  brummy theme    mostra/edita o tema (default: WhiteSur-Dark + accent azul)
+  brummy apps     lista atalhos principais
+  brummy doctor   checa se tudo está instalado
+  brummy wallpaper [list|set <nome>|next]  troca o papel de parede padrão
+  brummy hide [--list|--undo]  esconde/traz de volta apps no launcher
+
+Atalhos Hyprland (híbrido):
+  SUPER+D ou clique no   launcher com ícones (wofi drun)
+  SUPER+Q  terminal (kitty)
+  SUPER+E  arquivos (nautilus)
+  SUPER+L  lock screen
+  SUPER+1..9 workspaces | SUPER+SHIFT+1..9 mover janela
+  SUPER+F fullscreen | SUPER+V flutuar | SUPER+SHIFT+S captura de tela
+  Mouse:
+    SUPER+arrastar-esq / ALT+arrastar-esq = mover janela
+    SUPER+arrastar-dir / ALT+arrastar-dir = redimensionar (ou puxe a borda)
+    SUPER+scroll = trocar workspace | scroll no volume = muda volume
+    SUPER+clique-meio = fechar janela | clique nos workspaces = ir
+    Botão ⏻ na bar = menu desligar (wlogout)
+EOF
+    ;;
+  update)
+    echo "==> pacman -Syu"
+    sudo pacman -Syu
+    echo "==> relinkando configs"
+    "$REPO_DIR/install.sh"
+    ;;
+  theme)
+    echo "Tema atual: WhiteSur-Dark + accent azul"
+    echo "Por ora edite config/waybar/style.css e config/hypr/hyprland.lua"
+    echo "(a config do Hyprland é Lua desde a 0.55 — a antiga está em config/hypr/legacy/)"
+    ;;
+  apps)
+    cat <<'EOF'
+Apps Brummy (bundle estilo Omarchy — edite packages/*.packages):
+  Web: helium-browser (default) + firefox
+  Code: vscodium + neovim + lazygit + lazydocker + github-cli + mise + docker
+  AI: opencode + claude-code + claude-desktop
+  Notas: obsidian + gnome-text-editor + evince (PDF)
+  Office: libreoffice-fresh + onlyoffice-desktopeditors + gnome-calculator
+  Música/Vídeo: spotify + mpv + obs-studio + pinta
+  Voz: discord
+  Gaming RX 6600 XT: steam + lutris + bottles + wine/winetricks + protonplus + gamemode + gamescope + mangohud
+   Voz: discord | Torrent: qbittorrent
+   Discos/USB: gparted + balena-etcher | Áudio: easyeffects
+   Virt: qemu + libvirt + virt-manager + gnome-boxes (KVM) | Monitor: btop + mission-center + radeontop/nvtop
+  Bar: cpu/mem/gpu-amd + claudebar (uso Claude) — clique no monitor abre btop/radeontop
+  Utils macOS: localsend + udiskie + blueman + satty + hyprshot
+
+  Atalhos: SUPER+B browser | SUPER+Q kitty | SUPER+E nautilus | SUPER+SHIFT+C vscodium | SUPER+ESPAÇO spotlight
+   Gaming: rode `brummy doctor` p/ checar Vulkan; Steam com Proton-GE via ProtonUp-Qt
+  KVM: virt-manager → QEMU/KVM, rede default ativa; relogue após install p/ grupos
+  Remover bundle: brummy-remove-preinstalls
+EOF
+    ;;
+  wallpaper)
+    WDIR="$HOME/Pictures/Brummy"
+    shift || true
+    sub="${1:-list}"
+    case "$sub" in
+      list|--help|-h|"")
+        echo "Padrões em $WDIR (atual: $(readlink "$WDIR/current" 2>/dev/null | xargs basename 2>/dev/null || echo nenhum)):"
+        ls -1 "$WDIR" 2>/dev/null | grep -v '^current$' || echo "(vazio — adicione jpgs em themes/wallpapers/ e rode ./install.sh)"
+        echo "Uso: brummy wallpaper set <arquivo> | brummy wallpaper next"
+        ;;
+      set)
+        target="$WDIR/$2"
+        [[ -f "$target" ]] || { echo "não achei: $2 (veja: brummy wallpaper list)"; exit 1; }
+        ln -sf "$target" "$WDIR/current"
+        # O aplicador resolve o link e manda o caminho real (o hyprpaper
+        # escolhe o decodificador pela extensão — "current" sem extensão falha).
+        if command -v brummy-wallpaper-apply &>/dev/null; then
+          brummy-wallpaper-apply "$target"
+        else
+          "$REPO_DIR/bin/brummy-wallpaper-apply" "$target"
+        fi
+        ;;
+      next)
+        cur="$(readlink "$WDIR/current" 2>/dev/null | xargs basename 2>/dev/null)"
+        files=($(ls -1 "$WDIR" | grep -v '^current$'))
+        [[ ${#files[@]} -eq 0 ]] && { echo "nenhum wallpaper em $WDIR"; exit 1; }
+        idx=0
+        for k in "${!files[@]}"; do [[ "${files[$k]}" == "$cur" ]] && idx=$(( (k+1) % ${#files[@]} )); done
+        "$0" wallpaper set "${files[$idx]}"
+        ;;
+      *) echo "uso: brummy wallpaper [list|set <arquivo>|next]"; exit 1 ;;
+    esac
+    ;;
+  hide)
+    shift || true
+    exec "$REPO_DIR/bin/brummy-hide-apps" "$@"
+    ;;
+  doctor)
+    echo "--- perfil Hyprland ---"
+    readlink "$HOME/.config/hypr/modules/profile-monitors.lua" 2>/dev/null | xargs basename 2>/dev/null || echo "perfil não linkado (rode ./install.sh)"
+    readlink "$HOME/.config/hypr/modules/profile-gpu.lua" 2>/dev/null | xargs basename 2>/dev/null || true
+    echo "--- config Hyprland ---"
+    if [[ -f "$HOME/.config/hypr/hyprland.lua" ]]; then
+      echo "ok hyprland.lua (formato Lua, 0.55+)"
+    else
+      echo "FALTA hyprland.lua (rode ./install.sh)"
+    fi
+    [[ -f "$HOME/.config/hypr/hyprland.conf" ]] && echo "AVISO: hyprland.conf solto pode ganhar do .lua — mova ou apague"
+    if command -v hyprland &>/dev/null || command -v Hyprland &>/dev/null; then
+      ver=$(Hyprland --version 2>/dev/null | head -1 || hyprland --version 2>/dev/null | head -1)
+      echo "  $ver"
+    fi
+    command -v start-hyprland &>/dev/null && echo "ok start-hyprland" || echo "FALTA start-hyprland (Hyprland < 0.53?)"
+    grep -q 'start-hyprland' /etc/greetd/config.toml 2>/dev/null && echo "ok greetd usa start-hyprland" || echo "AVISO: greetd não usa start-hyprland (rode ./install.sh)"
+    echo "--- tema escuro ---"
+    cs=$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null || echo "?")
+    [[ "$cs" == *dark* ]] && echo "ok color-scheme=$cs" || echo "AVISO: color-scheme=$cs (apps GTK4 vão abrir claros)"
+    echo "  cursor: $(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null || echo '?')"
+    echo "--- wallpaper ---"
+    wp=$(readlink -f "$HOME/Pictures/Brummy/current" 2>/dev/null || true)
+    [[ -f "$wp" ]] && echo "ok $(basename "$wp")" || echo "FALTA wallpaper (rode ./install.sh)"
+    echo "--- base ---"
+    for b in hyprland Hyprland waybar wofi kitty fish greetd tuigreet thunar nautilus helium-browser firefox codium nvim docker obsidian discord qbittorrent gparted etcher gnome-boxes easyeffects claude-desktop opencode steam lutris bottles protonup-qt mangohud gamemoderun vulkaninfo glxinfo virsh virt-manager qemu-system-x86_64 btop radeontop mission-center claudebar; do
+      command -v "$b" &>/dev/null && echo "ok $b" || echo "FALTA $b"
+    done
+    echo "--- dev (Java/Node/Python/DBs) ---"
+    for b in java javac mvn gradle node npm python3 uv sqlite3 psql mysql kubectl k9s adb scrcpy postman dbeaver direnv delta http; do
+      command -v "$b" &>/dev/null && echo "ok $b" || echo "FALTA $b"
+    done
+    java -version 2>&1 | head -1 || true
+    echo "--- laptop (só thinkpad) ---"
+    for b in tlp-stat powertop thermald thinkfan; do
+      command -v "$b" &>/dev/null && echo "ok $b" || echo "FALTA $b (ok se desktop)"
+    done
+    echo "--- boot ---"
+    plymouth-set-default-theme 2>/dev/null || echo "plymouth sem tema (rode ./install.sh --boot-only com a logo em boot/assets/logo.png)"
+    echo "--- GPU AMD ---"
+    lspci -nn | grep -i 'vga\|display\|3d' || true
+    vulkaninfo --summary 2>/dev/null | head -20 || echo "vulkaninfo falhou (instale vulkan-tools / reinicie)"
+    echo "--- KVM ---"
+    virsh net-list --all 2>/dev/null || echo "libvirtd fora / sem grupo ainda (relogue)"
+    groups | grep -E 'libvirt|kvm' || echo "fora dos grupos libvirt/kvm (relogue)"
+    [[ -L "$HOME/.config/hypr" ]] && echo "ok hypr linkado" || echo "FALTA link hypr"
+    ;;
+  *)
+    echo "desconhecido: $cmd — tente: brummy help"
+    exit 1
+    ;;
+esac

@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# brummy-hide-apps — esconde do launcher os .desktop parasitas.
+#
+# Não desinstala nada: copia cada .desktop do sistema para
+# ~/.local/share/applications com NoDisplay=true (o override do usuário
+# vence o do sistema). Idempotente e reversível.
+#
+# Uso:
+#   brummy-hide-apps           esconde tudo que está na lista
+#   brummy-hide-apps --list    mostra o que seria escondido (dry-run)
+#   brummy-hide-apps --undo    remove os overrides do Brummy
+set -uo pipefail
+
+REPO_DIR="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+LIST="${BRUMMY_HIDDEN_LIST:-$REPO_DIR/config/brummy/hidden-apps.list}"
+USER_APPS="$HOME/.local/share/applications"
+MARK="X-Brummy-Hidden=true"
+SYS_DIRS=(/usr/share/applications /usr/local/share/applications /var/lib/flatpak/exports/share/applications)
+
+mode="${1:-apply}"
+mkdir -p "$USER_APPS"
+
+if [[ "$mode" == "--undo" ]]; then
+  n=0
+  while IFS= read -r -d '' f; do
+    grep -q "$MARK" "$f" 2>/dev/null && { rm -f "$f"; n=$((n+1)); }
+  done < <(find "$USER_APPS" -maxdepth 1 -name '*.desktop' -print0 2>/dev/null)
+  echo "[brummy] $n overrides removidos de $USER_APPS"
+  command -v update-desktop-database &>/dev/null && update-desktop-database "$USER_APPS" 2>/dev/null
+  exit 0
+fi
+
+[[ -r "$LIST" ]] || { echo "[brummy] lista não encontrada: $LIST" >&2; exit 1; }
+
+hidden=0; skipped=0
+while read -r pattern; do
+  pattern="${pattern%%#*}"; pattern="$(echo "$pattern" | xargs)"
+  [[ -z "$pattern" ]] && continue
+  for dir in "${SYS_DIRS[@]}"; do
+    [[ -d "$dir" ]] || continue
+    for src in "$dir"/$pattern; do
+      [[ -f "$src" ]] || continue
+      base="$(basename "$src")"
+      dst="$USER_APPS/$base"
+
+      if [[ "$mode" == "--list" ]]; then
+        name="$(grep -m1 '^Name=' "$src" | cut -d= -f2-)"
+        printf '  %-42s %s\n' "$base" "${name:-}"
+        hidden=$((hidden+1)); continue
+      fi
+
+      # Já existe um override do usuário que não é nosso: não mexe.
+      if [[ -f "$dst" ]] && ! grep -q "$MARK" "$dst" 2>/dev/null; then
+        skipped=$((skipped+1)); continue
+      fi
+
+      cp -f "$src" "$dst" 2>/dev/null || continue
+      sed -i '/^NoDisplay=/d; /^Hidden=/d; /^X-Brummy-Hidden=/d' "$dst"
+      sed -i "0,/^\[Desktop Entry\]/s//[Desktop Entry]\nNoDisplay=true\n$MARK/" "$dst"
+      hidden=$((hidden+1))
+    done
+  done
+done < "$LIST"
+
+if [[ "$mode" == "--list" ]]; then
+  echo "[brummy] $hidden entradas casariam com a lista (nada foi alterado)"
+  exit 0
+fi
+
+command -v update-desktop-database &>/dev/null && update-desktop-database "$USER_APPS" 2>/dev/null
+echo "[brummy] $hidden apps escondidos do launcher ($skipped já tinham override seu)"
+echo "         edite a lista em config/brummy/hidden-apps.list | desfaça com --undo"

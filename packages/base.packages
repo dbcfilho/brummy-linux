@@ -1,0 +1,151 @@
+# Brummy Linux — pacote base (pacman oficial)
+# Ideia Omarchy: vem tudo que precisa no dia 1, zero bloat além disso.
+# Categorias marcadas pra você editar à vontade.
+
+# --- core Hyprland macOS ---
+hyprland
+hyprlock
+hypridle
+hyprpaper
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+waybar
+nwg-dock-hyprland
+wofi
+kitty
+fish
+starship
+
+# --- topbar / dock / captura macOS (wlogout foi p/ AUR) ---
+hyprshot
+grim
+slurp
+satty
+cliphist
+wl-clipboard
+brightnessctl
+pavucontrol
+polkit-gnome
+gnome-keyring
+udiskie
+blueman
+networkmanager
+nm-connection-editor
+
+# --- arquivos / PDF / imagem (tradicional) ---
+thunar
+nautilus
+sushi
+gvfs
+gvfs-mtp
+gvfs-smb
+tumbler
+file-roller
+gparted
+evince
+loupe
+pinta
+
+# --- browser (helium default + firefox) ---
+firefox
+discord
+qbittorrent
+
+# --- escrita / notas / office (onlyoffice foi p/ AUR: onlyoffice-bin) ---
+obsidian
+gnome-text-editor
+gnome-calculator
+libreoffice-fresh
+
+# --- música / vídeo / voz (sem kdenlive, com obs-studio) ---
+mpv
+obs-studio
+
+# --- dev (curadoria Omarchy, leve pra hobby) ---
+neovim
+tmux
+git
+stow
+docker
+docker-compose
+lazydocker
+lazygit
+github-cli
+mise
+fzf
+ripgrep
+fd
+bat
+eza
+zoxide
+btop
+fastfetch
+tldr
+jq
+
+# --- GPU AMD RX 6600 XT (RDNA2, open-source) ---
+mesa
+lib32-mesa
+vulkan-radeon
+lib32-vulkan-radeon
+vulkan-icd-loader
+lib32-vulkan-icd-loader
+libva-mesa-driver
+lib32-libva-mesa-driver
+xf86-video-amdgpu
+vulkan-tools
+amd-ucode
+
+# --- gaming: steam + lutris + bottles + proton (bottles/protonup-qt foram p/ AUR) ---
+steam
+lutris
+wine
+winetricks
+gamemode
+lib32-gamemode
+gamescope
+mangohud
+lib32-mangohud
+
+# --- virtualização KVM (virt-manager) + Boxes (estilo GNOME) ---
+qemu-desktop
+libvirt
+virt-manager
+virt-viewer
+gnome-boxes
+dnsmasq
+vde2
+openbsd-netcat
+edk2-ovmf
+swtpm
+
+# --- monitoramento (estilo Astra, nativo Waybar) ---
+radeontop
+mission-center
+nvtop
+
+# --- login gráfico (greetd + tuigreet: menu texto, digita a senha e entra no Hyprland) ---
+greetd
+greetd-tuigreet
+
+# --- boot: splash Plymouth + gerador de assets ---
+plymouth
+python-pillow
+
+# --- sistema / áudio / fontes ---
+pipewire
+pipewire-pulse
+wireplumber
+pamixer
+easyeffects
+playerctl
+power-profiles-daemon
+base-devel
+unzip
+man-db
+inter-font
+ttf-jetbrains-mono-nerd
+noto-fonts
+noto-fonts-emoji
+papirus-icon-theme
+nwg-look

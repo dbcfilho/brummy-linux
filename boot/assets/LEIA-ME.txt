@@ -1,0 +1,5 @@
+# PASSO 1 — salve a logo aqui:
+# Pegue a imagem anexada no chat (B branco com glow/orbita em fundo escuro)
+# e salve como: brummy-linux/boot/assets/logo.png
+# Depois rode:  python3 brummy-linux/boot/make-assets.py
+# Isso gera glow.png, dot.png, bar-*.png, grub-background.png (somem o .assets-ok).

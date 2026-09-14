@@ -1,0 +1,14 @@
+/* Brummy Dock — vidro fosco estilo macOS */
+#box {
+  background-color: rgba(22, 22, 30, 0.6);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  padding: 8px 12px;
+  margin-bottom: 6px;
+}
+button {
+  border-radius: 16px;
+  padding: 6px;
+  margin: 0 3px;
+}
+button:hover { background-color: rgba(255, 255, 255, 0.14); }

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# brummy-remove-preinstalls — igual omarchy-remove-preinstalls
+# Remove os bundles de apps, mantendo o core Hyprland pra você ficar minimalista.
+# (Nautilus é mantido: virou o gerenciador padrão do SUPER+E.)
+set -euo pipefail
+sudo pacman -Rns --noconfirm \
+  firefox discord qbittorrent \
+  obsidian libreoffice-fresh onlyoffice-desktopeditors \
+  obs-studio mpv pinta \
+  docker docker-compose lazydocker \
+  gparted gnome-boxes easyeffects \
+  neovim tmux lazygit github-cli \
+  jdk-openjdk jdk21-openjdk maven gradle \
+  nodejs npm uv dbeaver kubectl k9s \
+  postgresql mariadb-clients redis \
+  android-tools scrcpy httpie \
+  steam lutris wine winetricks gamemode gamescope mangohud \
+  qemu-desktop virt-manager virt-viewer \
+  2>/dev/null || true
+paru -Rns --noconfirm \
+  helium-browser-bin vscodium-bin spotify-launcher \
+  opencode-bin claude-code claude-desktop \
+  postman-bin etcher-bin walker-bin \
+  bottles onlyoffice-bin protonup-qt-bin wlogout localsend-bin catppuccin-gtk-theme-mocha \
+  2>/dev/null || yay -Rns --noconfirm \
+  helium-browser-bin vscodium-bin spotify-launcher \
+  opencode-bin claude-code claude-desktop \
+  postman-bin etcher-bin walker-bin \
+  bottles onlyoffice-bin protonup-qt-bin wlogout localsend-bin catppuccin-gtk-theme-mocha \
+  2>/dev/null || true
+echo "Preinstalls removidos. Core Hyprland mantido."
+echo "Restaure com: ./install.sh (roda de novo, é idempotente)"

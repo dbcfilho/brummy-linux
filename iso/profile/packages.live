@@ -1,0 +1,11 @@
+# Pacotes que existem só dentro da ISO live (não vão para o sistema instalado:
+# o módulo packages do Calamares remove estes depois de copiar).
+archiso
+mkinitcpio-archiso
+arch-install-scripts
+squashfs-tools
+memtest86+
+memtest86+-efi
+edk2-shell
+# instalador gráfico (vem do AUR — construído por builder/aur-repo.sh)
+calamares

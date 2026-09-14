@@ -1,0 +1,16 @@
+/* Brummy macOS — frosted glass topbar */
+* { font-family: "Inter", "JetBrainsMono Nerd Font", sans-serif; font-size: 13px; }
+window#waybar {
+  background: rgba(20, 20, 28, 0.55);
+  color: #f5f5f7;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+#workspaces button { color: #a1a1a6; padding: 2px 9px; border-radius: 9px; }
+#workspaces button.active { color: #11111b; background: rgba(255,255,255,0.92); border-radius: 9px; }
+#workspaces button:hover { background: rgba(255,255,255,0.18); color: #fff; }
+#clock, #pulseaudio, #network, #battery, #tray, #custom-apple, #custom-power, #window { padding: 0 10px; }
+#custom-apple { color: #fff; font-size: 15px; padding-left: 14px; }
+#custom-power { color: #ff9f9f; padding-right: 14px; }
+#window { color: rgba(245,245,247,0.75); font-weight: 600; }
+tooltip { background: rgba(30,30,36,0.92); border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); }

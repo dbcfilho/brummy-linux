@@ -1,0 +1,4 @@
+# Brummy Linux — Android pesado (só com ./install.sh --with-android, ~1GB+)
+# Espelha o Android Studio (flatpak) da máquina Debian. SDK é baixado no 1º boot do Studio.
+android-studio
+android-studio-settings
