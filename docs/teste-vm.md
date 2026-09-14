@@ -131,6 +131,38 @@ cd brummy-linux && git pull && ./install.sh              # a cada rodada
 Se preferir interface gráfica, o **virt-manager** (`sudo apt install
 virt-manager`) dá os mesmos controles do QEMU numa janela — só o Boxes que não.
 
+### Digitou a senha e o login não entra
+
+Se o Hyprland abrir isto e voltar para a tela de senha:
+
+```
+ERR  ]: Couldn't create config home directory (File exists): /home/dbrum/.config/hypr
+CRIT ]: [cfg] Couldn't generate default config: Config could not be generated.
+```
+
+...o problema é um **link quebrado**, não a sua senha. Os configs em
+`~/.config/` são links para este repo. Se a pasta do repo for movida, renomeada
+ou apagada, o link continua existindo mas aponta para o vazio — e aí o Hyprland
+tenta criar o diretório, esbarra no link ("File exists"), desiste de gerar um
+config padrão e morre. A mensagem não menciona link nenhum.
+
+Confirme e conserte a partir de um TTY (**Ctrl+Alt+F2**; se a tecla não passar
+pela janela do QEMU, use "Change command" na tela do tuigreet e entre com `bash`):
+
+```bash
+ls -l ~/.config/hypr           # se o destino estiver em vermelho, é isso
+brummy fix                     # remove os links órfãos e refaz a camada de usuário
+```
+
+Se o repo em si sumiu, traga ele de volta antes:
+
+```bash
+git clone https://github.com/dbcfilho/brummy-linux.git ~/brummy-linux
+cd ~/brummy-linux && ./install.sh
+```
+
+O `brummy doctor` agora avisa disso antes de você descobrir na marra.
+
 ### Parou em ">>Start PXE over IPv4"?
 
 É o firmware errado para aquele disco, não um disco quebrado. Um sistema

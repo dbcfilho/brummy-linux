@@ -195,6 +195,13 @@ link_dir() {
     echo "  ok $name já linkado"
     return 0
   fi
+  # Link apontando para o vazio (repo movido/apagado): remove em vez de tentar
+  # backup. Em ~/.config/hypr isso impede o Hyprland de subir, com a mensagem
+  # "Couldn't create config home directory (File exists)" — e o login não entra.
+  if [[ -L "$dst" && ! -e "$dst" ]]; then
+    echo "  link quebrado em $name (-> $(readlink "$dst")): removendo"
+    rm -f "$dst"
+  fi
   if [[ -e "$dst" ]]; then
     echo "  backup $dst -> $dst.bak-brummy"
     mv "$dst" "$dst.bak-brummy-$(date +%s)"
@@ -254,6 +261,16 @@ if [[ -f "$HYPR_DIR/hyprland.conf" && ! -L "$HYPR_DIR" ]]; then
   mv "$HYPR_DIR/hyprland.conf" "$HYPR_DIR/hyprland.conf.pre-lua-$(date +%s)"
   echo "  hyprland.conf antigo movido (agora vale o hyprland.lua)"
 fi
+
+# Conferência: link que não resolve = login gráfico que não entra.
+for d in hypr waybar kitty wofi fish nwg-dock-hyprland fastfetch; do
+  alvo="$HOME/.config/$d"
+  if [[ -L "$alvo" && ! -e "$alvo" ]]; then
+    echo "  AVISO: $alvo aponta para o vazio — rode 'brummy fix'"
+  fi
+done
+echo "  (os configs são LINKS para este repo em $REPO_DIR —"
+echo "   se você mover ou apagar esta pasta, rode 'brummy fix' antes de deslogar)"
 
 echo "==> [brummy] instalando comando brummy..."
 ln -sf "$BIN_SRC" "$TARGET_BIN"

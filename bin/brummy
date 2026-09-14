@@ -17,6 +17,7 @@ Brummy Linux — comandos:
   brummy doctor   checa se tudo está instalado
   brummy wallpaper [list|set <nome>|next]  troca o papel de parede padrão
   brummy hide [--list|--undo]  esconde/traz de volta apps no launcher
+  brummy fix      conserta links de config quebrados (não entra na sessão?)
 
 Atalhos Hyprland (híbrido):
   SUPER+D ou clique no   launcher com ícones (wofi drun)
@@ -100,6 +101,29 @@ EOF
       *) echo "uso: brummy wallpaper [list|set <arquivo>|next]"; exit 1 ;;
     esac
     ;;
+  fix)
+    # Remove links de config que apontam para o vazio e refaz a camada de
+    # usuário. É o conserto de "movi/apaguei o repo e agora não entro".
+    echo "==> procurando links quebrados em ~/.config"
+    achou=0
+    for d in hypr waybar kitty wofi fish nwg-dock-hyprland fastfetch; do
+      alvo="$HOME/.config/$d"
+      if [[ -L "$alvo" && ! -e "$alvo" ]]; then
+        echo "  removendo $d -> $(readlink "$alvo")"
+        rm -f "$alvo"; achou=$((achou+1))
+      fi
+    done
+    [[ "$achou" == 0 ]] && echo "  (nenhum link quebrado)"
+    if [[ ! -d "$REPO_DIR/config" ]]; then
+      echo "ERRO: não achei o repo em $REPO_DIR — clone de novo e rode ./install.sh lá"
+      exit 1
+    fi
+    echo "==> refazendo os links (install.sh --user-only)"
+    "$REPO_DIR/install.sh" --user-only
+    echo ""
+    echo "Pronto. Saia e entre de novo na sessão."
+    ;;
+
   hide)
     shift || true
     exec "$REPO_DIR/bin/brummy-hide-apps" "$@"
@@ -108,6 +132,28 @@ EOF
     echo "--- perfil Hyprland ---"
     readlink "$HOME/.config/hypr/modules/profile-monitors.lua" 2>/dev/null | xargs basename 2>/dev/null || echo "perfil não linkado (rode ./install.sh)"
     readlink "$HOME/.config/hypr/modules/profile-gpu.lua" 2>/dev/null | xargs basename 2>/dev/null || true
+    echo "--- links de config ---"
+    # Um link quebrado em ~/.config/hypr deixa o Hyprland assim:
+    #   ERR ]: Couldn't create config home directory (File exists)
+    #   CRIT ]: [cfg] Couldn't generate default config
+    # ...e o login gráfico simplesmente não entra. Acontece quando o repo é
+    # movido, renomeado ou apagado depois do install.sh.
+    quebrados=0
+    for d in hypr waybar kitty wofi fish nwg-dock-hyprland fastfetch; do
+      alvo="$HOME/.config/$d"
+      [[ -L "$alvo" ]] || continue
+      if [[ -e "$alvo" ]]; then
+        echo "ok   $d -> $(readlink "$alvo")"
+      else
+        echo "QUEBRADO $d -> $(readlink "$alvo")  (o destino não existe mais)"
+        quebrados=$((quebrados+1))
+      fi
+    done
+    if (( quebrados > 0 )); then
+      echo ""
+      echo ">>> $quebrados link(s) apontando para o vazio. O login gráfico NÃO vai entrar."
+      echo ">>> Conserte com: brummy fix"
+    fi
     echo "--- config Hyprland ---"
     if [[ -f "$HOME/.config/hypr/hyprland.lua" ]]; then
       echo "ok hyprland.lua (formato Lua, 0.55+)"
