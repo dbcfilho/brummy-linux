@@ -152,6 +152,39 @@ cd brummy-linux && git pull && ./install.sh              # a cada rodada
 Se preferir interface gráfica, o **virt-manager** (`sudo apt install
 virt-manager`) dá os mesmos controles do QEMU numa janela — só o Boxes que não.
 
+### SUPER+alguma coisa aciona o host em vez da VM
+
+A VM abriu, o Hyprland rodou, mas `SUPER+C` abre a dock do Debian. São duas
+camadas segurando a tecla, e as duas precisam ceder:
+
+**1. O QEMU precisa capturar o teclado.** O `tools/vm.sh` já sobe com
+`grab-on-hover=on`, então basta o mouse estar sobre a janela. Para soltar e
+recapturar na mão a qualquer momento: **Ctrl+Alt+G**. (`BRUMMY_VM_GRAB=0`
+desliga, se atrapalhar.)
+
+**2. O GNOME do host reserva o SUPER.** Num host Wayland ele fica com as
+combinações antes do QEMU ver. E a colisão é feia, porque é justo o que o
+Brummy usa:
+
+| Tecla | Brummy | GNOME do host |
+|---|---|---|
+| `SUPER` sozinho | — | abre o Atividades |
+| `SUPER+C` | fecha a janela | — (mas o SUPER já foi) |
+| `SUPER+E` | arquivos | pasta pessoal |
+| `SUPER+L` | bloquear tela | bloquear tela |
+| `SUPER+V` | flutuar janela | central de notificações |
+| `SUPER+1..9` | workspaces | apps da dock |
+
+```bash
+./tools/host-keys.sh liberar      # antes de testar
+./tools/host-keys.sh restaurar    # quando terminar
+./tools/host-keys.sh status       # em qual estado estou?
+```
+
+Ele guarda os valores originais em `~/.cache/brummy/host-keys.bak` e o
+`restaurar` reaplica um por um — nada é perdido. Se esquecer de restaurar, o
+`status` lembra que ficou liberado.
+
 ### Digitou a senha e o login não entra
 
 Se o Hyprland abrir isto e voltar para a tela de senha:

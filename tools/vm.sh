@@ -22,7 +22,7 @@
 #
 # Variáveis: BRUMMY_VM_DISK, BRUMMY_VM_DIR, BRUMMY_VM_RAM (4096),
 #            BRUMMY_VM_CPUS (4), BRUMMY_VM_SIZE (25G), BRUMMY_VM_GL (1),
-#            BRUMMY_VM_UEFI (rodar=0, iso=1)
+#            BRUMMY_VM_UEFI (rodar=0, iso=1), BRUMMY_VM_GRAB (1)
 #
 # Parou em ">>Start PXE over IPv4"? É o firmware errado para este disco.
 # Um disco instalado em BIOS não boota em UEFI, e vice-versa. Inverta:
@@ -38,6 +38,7 @@ DISK_SIZE="${BRUMMY_VM_SIZE:-25G}"
 RAM="${BRUMMY_VM_RAM:-4096}"
 CPUS="${BRUMMY_VM_CPUS:-4}"
 USE_GL="${BRUMMY_VM_GL:-1}"
+GRAB="${BRUMMY_VM_GRAB:-1}"   # captura o teclado ao passar o mouse na janela
 SSH_PORT=2222
 
 die() { echo "ERRO: $*" >&2; exit 1; }
@@ -75,10 +76,15 @@ build_args() {
     -object rng-random,id=rng0,filename=/dev/urandom
     -device virtio-rng-pci,rng=rng0
   )
+  # grab-on-hover: sem isso, teclas como SUPER ficam com o host e nunca chegam
+  # no Hyprland da VM (SUPER+C abre a dock do seu Debian em vez de fechar a
+  # janela da VM). Ctrl+Alt+G solta e recaptura na mão a qualquer momento.
+  local disp_opts="show-cursor=off"
+  [[ "$GRAB" == "1" ]] && disp_opts="$disp_opts,grab-on-hover=on"
   if [[ "$USE_GL" == "1" ]]; then
-    qemu_args+=(-device virtio-vga-gl -display gtk,gl=on,show-cursor=off)
+    qemu_args+=(-device virtio-vga-gl -display "gtk,gl=on,$disp_opts")
   else
-    qemu_args+=(-device virtio-vga -display gtk,show-cursor=off)
+    qemu_args+=(-device virtio-vga -display "gtk,$disp_opts")
   fi
   local aud; aud="$(pick_audio)"
   if [[ -n "$aud" ]]; then
@@ -205,6 +211,8 @@ DEPS
     build_args
     qemu_args+=(-drive "file=$DISK,if=virtio,format=qcow2" -boot order=c)
     echo "==> bootando $DISK (SSH em 127.0.0.1:$SSH_PORT)"
+    echo "    teclado: Ctrl+Alt+G solta/captura. SUPER indo para o host?"
+    echo "             ./tools/host-keys.sh liberar   (e 'restaurar' depois)"
     add_firmware bios
     exec qemu-system-x86_64 "${qemu_args[@]}"
     ;;
