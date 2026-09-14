@@ -74,14 +74,19 @@ EOF
     sub="${1:-list}"
     case "$sub" in
       list|--help|-h|"")
-        echo "Padrões em $WDIR (atual: $(readlink "$WDIR/current" 2>/dev/null | xargs basename 2>/dev/null || echo nenhum)):"
-        ls -1 "$WDIR" 2>/dev/null | grep -v '^current$' || echo "(vazio — adicione jpgs em themes/wallpapers/ e rode ./install.sh)"
+        echo "Padrões em $WDIR (atual: $(readlink "$WDIR/current.jpg" 2>/dev/null | xargs basename 2>/dev/null || echo nenhum)):"
+        ls -1 "$WDIR" 2>/dev/null | grep -v '^current\.jpg$' || echo "(vazio — adicione jpgs em themes/wallpapers/ e rode ./install.sh)"
         echo "Uso: brummy wallpaper set <arquivo> | brummy wallpaper next"
         ;;
       set)
         target="$WDIR/$2"
         [[ -f "$target" ]] || { echo "não achei: $2 (veja: brummy wallpaper list)"; exit 1; }
-        ln -sf "$target" "$WDIR/current"
+        ln -sf "$target" "$WDIR/current.jpg"
+        case "${target,,}" in
+          *.jpg|*.jpeg) ;;
+          *) echo "  (aviso: $2 não é jpg — o hyprpaper aplica agora via IPC, mas no"
+             echo "   próximo login o fundo pode não voltar. Converta para .jpg se incomodar.)" ;;
+        esac
         # O aplicador resolve o link e manda o caminho real (o hyprpaper
         # escolhe o decodificador pela extensão — "current" sem extensão falha).
         if command -v brummy-wallpaper-apply &>/dev/null; then
@@ -91,8 +96,8 @@ EOF
         fi
         ;;
       next)
-        cur="$(readlink "$WDIR/current" 2>/dev/null | xargs basename 2>/dev/null)"
-        files=($(ls -1 "$WDIR" | grep -v '^current$'))
+        cur="$(readlink "$WDIR/current.jpg" 2>/dev/null | xargs basename 2>/dev/null)"
+        files=($(ls -1 "$WDIR" | grep -v '^current\.jpg$'))
         [[ ${#files[@]} -eq 0 ]] && { echo "nenhum wallpaper em $WDIR"; exit 1; }
         idx=0
         for k in "${!files[@]}"; do [[ "${files[$k]}" == "$cur" ]] && idx=$(( (k+1) % ${#files[@]} )); done
@@ -132,6 +137,23 @@ EOF
     echo "--- perfil Hyprland ---"
     readlink "$HOME/.config/hypr/modules/profile-monitors.lua" 2>/dev/null | xargs basename 2>/dev/null || echo "perfil não linkado (rode ./install.sh)"
     readlink "$HOME/.config/hypr/modules/profile-gpu.lua" 2>/dev/null | xargs basename 2>/dev/null || true
+    echo "--- o visual depende destes ---"
+    # Sem estes a sessão sobe, mas fica "sem cara de nada": glifos viram
+    # espaço em branco, a dock não aparece e o papel de parede não entra.
+    for par in "ttf-jetbrains-mono-nerd:glifos da Waybar (, , ⏻)" \
+               "inter-font:fonte da interface" \
+               "nwg-dock-hyprland:dock de baixo" \
+               "hyprpaper:papel de parede" \
+               "whitesur-gtk-theme:tema das janelas" \
+               "bibata-cursor-theme-bin:cursor"; do
+      pkg="${par%%:*}"; desc="${par#*:}"
+      if pacman -Qq "$pkg" &>/dev/null; then
+        echo "ok   $pkg"
+      else
+        echo "FALTA $pkg — $desc"
+      fi
+    done
+    echo "     (falta muita coisa? o ./install.sh completo ainda não rodou aqui)"
     echo "--- links de config ---"
     # Um link quebrado em ~/.config/hypr deixa o Hyprland assim:
     #   ERR ]: Couldn't create config home directory (File exists)
@@ -172,7 +194,7 @@ EOF
     [[ "$cs" == *dark* ]] && echo "ok color-scheme=$cs" || echo "AVISO: color-scheme=$cs (apps GTK4 vão abrir claros)"
     echo "  cursor: $(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null || echo '?')"
     echo "--- wallpaper ---"
-    wp=$(readlink -f "$HOME/Pictures/Brummy/current" 2>/dev/null || true)
+    wp=$(readlink -f "$HOME/Pictures/Brummy/current.jpg" 2>/dev/null || true)
     [[ -f "$wp" ]] && echo "ok $(basename "$wp")" || echo "FALTA wallpaper (rode ./install.sh)"
     echo "--- base ---"
     for b in hyprland Hyprland waybar wofi kitty fish greetd tuigreet thunar nautilus helium-browser firefox codium nvim docker obsidian discord qbittorrent gparted etcher gnome-boxes easyeffects claude-desktop opencode steam lutris bottles protonup-qt mangohud gamemoderun vulkaninfo glxinfo virsh virt-manager qemu-system-x86_64 btop radeontop mission-center claudebar; do

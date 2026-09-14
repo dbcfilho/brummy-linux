@@ -176,12 +176,17 @@ mkdir -p "$HOME/Pictures/Brummy"
 for w in "$REPO_DIR/themes/wallpapers/"*.jpg "$REPO_DIR/themes/wallpapers/"*.jpeg "$REPO_DIR/themes/wallpapers/"*.png; do
   [[ -f "$w" ]] && cp -f "$w" "$HOME/Pictures/Brummy/"
 done
-# Padrão: ibitipoca-16x9.jpg; respeita troca já feita via `brummy wallpaper`
-if [[ ! -L "$HOME/Pictures/Brummy/current" ]]; then
-  ln -sf "$HOME/Pictures/Brummy/ibitipoca-16x9.jpg" "$HOME/Pictures/Brummy/current"
+# Padrão: ibitipoca-16x9.jpg; respeita troca já feita via `brummy wallpaper`.
+# O link se chama current.JPG porque o hyprpaper escolhe o decodificador pela
+# extensão — assim ele aplica o papel de parede sozinho, mesmo que nada mais
+# do Brummy tenha sido instalado ainda.
+if [[ ! -L "$HOME/Pictures/Brummy/current.jpg" ]]; then
+  ln -sf "$HOME/Pictures/Brummy/ibitipoca-16x9.jpg" "$HOME/Pictures/Brummy/current.jpg"
 fi
+# Sobra de versão anterior: o link sem extensão não servia para nada
+[[ -L "$HOME/Pictures/Brummy/current" ]] && rm -f "$HOME/Pictures/Brummy/current"
 # Legado: mantém brummy-wallpaper.jpg apontando pro atual
-ln -sf "$HOME/Pictures/Brummy/current" "$HOME/Pictures/brummy-wallpaper.jpg"
+ln -sf "$HOME/Pictures/Brummy/current.jpg" "$HOME/Pictures/brummy-wallpaper.jpg"
 
 echo "==> [brummy] linkando configs (com backup)..."
 mkdir -p "$HOME/.config" "$HOME/.local/bin"

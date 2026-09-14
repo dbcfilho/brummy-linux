@@ -6,7 +6,7 @@
 set -uo pipefail
 
 WDIR="$HOME/Pictures/Brummy"
-IMG="${1:-$WDIR/current}"
+IMG="${1:-$WDIR/current.jpg}"
 IMG="$(readlink -f "$IMG" 2>/dev/null || echo "$IMG")"
 
 if [[ ! -f "$IMG" ]]; then
