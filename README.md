@@ -1,102 +1,182 @@
-# Brummy Linux v1
+# Brummy Linux
 
-Camada opinionada em cima de **Arch Linux + Hyprland**, inspirada no Omarchy do DHH,
-mas com visão própria: **híbrido minimalista + tradicional**.
+Camada opinionada sobre **Arch Linux + Hyprland**. Não é um fork nem um kernel do
+zero: é a mesma ideia do [Omarchy](https://omarchy.org) do DHH, com visão própria.
 
-Filosofia:
-- Rápido e teclado-driven como Hyprland (minimalista)
-- Mas descobrível e clicável como KDE/GNOME (tradicional): bar com tray, launcher com ícones, file manager GUI, `brummy` helper com menu
-- Tudo versionado aqui. Instalação idempotente via `./install.sh`
+**Híbrido minimalista + tradicional.** Rápido e teclado-driven como um tiling,
+descobrível e clicável como GNOME/KDE. Quem sabe os atalhos voa; quem não sabe
+tem barra com bandeja, launcher com ícones, gerenciador de arquivos gráfico e um
+`brummy help` que conta tudo.
 
-## Stack v1
+> **Estado: v1.1, em validação.** A config do Hyprland foi migrada para Lua e
+> passa no `hyprland --verify-config`. O `install.sh` completo ainda não foi
+> validado de ponta a ponta numa máquina limpa — veja o [roadmap](#roadmap).
+> Use por sua conta e risco, de preferência numa VM.
 
-- Base: Arch Linux (rolling) — 180 pacotes (ver `packages/`)
-- WM: Hyprland híbrido macOS (tiling + mouse, dock, topbar, Spotlight) — config em **Lua** (0.55+)
-- Bar: Waybar (cpu/mem/gpu + claudebar + tray)
-- Files: **nautilus** (padrão, SUPER+E) + thunar de fallback
-- Browser: helium (padrão) + firefox | Editor: vscodium + neovim
-- Bundle: dev (Java/Node/Python/Postgres/k8s), gaming RX 6600 XT, KVM + Boxes
-- Boot: logo no GRUB + splash Plymouth com luz pulsante
-- Tema: WhiteSur-Dark + accent azul (estilo ChromaLeon, sem GNOME Shell)
+---
 
-## Perfis (`./install.sh --profile ...`, auto por padrão)
+## O que vem dentro
 
-| Perfil | Máquina |
+| | |
 |---|---|
-| `desktop` | Xeon + RX 6600 XT, dual 1080p |
-| `thinkpad` | T430 / laptop (Intel + TLP + TrackPoint) |
-| `general` | qualquer outro PC |
+| **Base** | Arch Linux (rolling) — ~185 pacotes, listados em `packages/` |
+| **Compositor** | Hyprland, config em **Lua** (0.55+), tiling com mouse tradicional |
+| **Barra** | Waybar flutuante com bandeja, e módulos que somem sozinhos quando o hardware não existe |
+| **Dock** | nwg-dock-hyprland, auto-hide, ícones 48px |
+| **Launcher** | wofi no `SUPER+Espaço`, estilo Spotlight |
+| **Arquivos** | Nautilus (`SUPER+E`), Thunar de reserva |
+| **Terminal** | kitty, com cadeia de fallback até o xterm |
+| **Tema** | WhiteSur-Dark + accent azul, cursor Bibata, Inter + JetBrains Mono Nerd |
+| **Boot** | logo no GRUB + splash Plymouth com luz pulsante |
+| **Bundles** | dev (Java/Node/Python/Postgres/k8s), gaming (RX 6600 XT), KVM + Boxes |
 
-Flags: `--no-dev`, `--with-android`, `--no-boot`, `--boot-only`. Detalhes em `docs/`.
+Atalhos principais — `brummy apps` lista todos:
 
-## Uso
+```
+SUPER+Espaço  launcher        SUPER+Q ou ENTER  terminal
+SUPER+E       arquivos        SUPER+B           navegador
+SUPER+C       fechar          SUPER+F           tela cheia
+SUPER+V       flutuar         SUPER+SHIFT+S     captura de tela
+SUPER+1..9    workspaces      SUPER+arrastar    mover/redimensionar
+```
 
-O Brummy é pós-instalação: instale um Arch base (**`archinstall`** na ISO oficial
-resolve sem terminal, ou EndeavourOS com Calamares gráfico) e rode **um comando**:
+Sem tecla nenhuma: puxe a borda da janela para redimensionar, arraste com `ALT`
+para mover, clique nos workspaces da barra, use o botão ⏻ para desligar.
+
+---
+
+## Instalação
+
+O Brummy é **pós-instalação**. Instale um Arch base — `archinstall` na ISO
+oficial resolve por menu, ou EndeavourOS se quiser instalador gráfico — e rode
+**um comando**:
 
 ```bash
 git clone https://github.com/dbcfilho/brummy-linux.git
 cd brummy-linux
-./install.sh                     # auto-detecta o perfil
-./install.sh --boot-only         # só refaz GRUB + Plymouth (precisa de boot/assets/logo.png)
-./install.sh --user-only         # só a camada de usuário (configs, tema, helpers)
+./install.sh
 ```
 
-Detalhes dos caminhos (incl. instalador fácil) em `docs/install.md`.
-Roteiro de validação em VM: `docs/teste-vm.md`.
-
-Também dá para gerar uma **ISO live** com instalador gráfico (Calamares), que já
-vem com o Brummy pronto — veja `iso/README.md`:
+É idempotente: pode rodar quantas vezes quiser, faz backup do que substitui.
 
 ```bash
-./iso/build.sh          # precisa de Docker; a ISO sai em iso/out/
+./install.sh --profile thinkpad   # força o perfil
+./install.sh --no-dev             # pula o bundle de desenvolvimento
+./install.sh --user-only          # só configs e tema, sem tocar em pacotes
+./install.sh --boot-only          # só refaz GRUB + Plymouth
 ```
 
-O script:
-1. Checa que é Arch, detecta o perfil
-2. Instala pacotes pacman + AUR (paru/yay)
-3. Links de `config/*` -> `~/.config/*` (com backup) + perfil Hyprland em Lua
-   (GTK é copiado, não linkado: nwg-look escreve nesses arquivos)
-4. Postgres (initdb), Java default, TLP (thinkpad), Plymouth + GRUB
-5. Instala `brummy` em `~/.local/bin`
+### Perfis
+
+Detectados sozinhos pelo DMI e pelo `lspci`:
+
+| Perfil | Máquina |
+|---|---|
+| `desktop` | Xeon + RX 6600 XT, dois monitores 1080p |
+| `thinkpad` | T430 e laptops em geral (Intel + TLP + TrackPoint) |
+| `general` | qualquer outro PC |
+
+### ISO live
+
+Em construção. A ideia é baixar, dar boot, ver o sistema rodando e instalar pelo
+Calamares. O esqueleto está em `iso/` e **ainda não foi construído nenhuma vez**:
 
 ```bash
-brummy help | apps | doctor | wallpaper | theme | hide | update
+./iso/build.sh      # precisa de Docker; a ISO sai em iso/out/
 ```
 
-## Estrutura
+---
+
+## O comando `brummy`
+
+```bash
+brummy help        atalhos e comandos, sem precisar decorar nada
+brummy apps        o que veio instalado, por categoria
+brummy doctor      diagnóstico: o que falta, links quebrados, tema, wallpaper
+brummy wallpaper   list | set <arquivo> | next
+brummy hide        esconde apps parasitas do launcher (--list, --undo)
+brummy fix         conserta links de config quebrados
+brummy update      atualiza o sistema e repuxa os links do repo
+```
+
+O `brummy doctor` é o primeiro lugar para olhar quando algo parecer errado. Ele
+diz, entre outras coisas, se algum link de config está apontando para o vazio —
+que é a causa nº 1 de "o login gráfico não entra".
+
+---
+
+## Para quem quiser mexer
+
+Tudo que o sistema usa está versionado aqui. `~/.config/hypr`, `~/.config/waybar`
+e companhia são **links** para `config/` neste repo: editou, já está no git.
+
+```bash
+./tools/check.sh                  # sintaxe, JSON, Lua e todos os subcomandos
+./tools/vm.sh deps                # o que instalar para testar em VM
+./tools/vm.sh achar               # acha discos de VM que você já tem
+./tools/vm.sh overlay <disco>     # boota um deles sem escrever nele
+./tools/vm.sh enviar              # manda o repo para dentro da VM
+./tools/vm.sh ssh                 # terminal na VM, sem depender de atalho
+./tools/host-keys.sh liberar      # solta o SUPER do host (GNOME) e devolve depois
+```
+
+Dentro da VM, a checagem que importa:
+
+```bash
+hyprland --verify-config
+```
+
+### Estrutura
 
 ```
 brummy-linux/
-  install.sh            # instalador idempotente (perfis + flags)
-  packages/             # base, dev, laptop, android, AUR
-  bin/brummy            # CLI helper descobrível
-  config/hypr/          # hyprland.lua + modules/ (monitores, GPU, trackpoint)
-  config/waybar/        # bar tradicional + scripts que somem quando não se aplicam
-  config/gtk-3.0/4.0/   # WhiteSur-Dark + cursor Bibata
-  config/brummy/        # hidden-apps.list (o que não aparece no launcher)
-  config/kitty/wofi/fish/
-  themes/wallpapers/    # papéis de parede padrão
-  boot/                 # tema Plymouth + gerador de assets + fundo GRUB
-  iso/                  # ISO live com Calamares (archiso rodando em Docker)
-  tools/vm.sh           # VM de teste em QEMU (o Boxes não dá conta)
-  tools/check.sh        # checagem local antes de levar pra VM
-  tools/host-keys.sh    # libera o SUPER do host pra ele chegar na VM
-  docs/                 # profiles, dev, boot, teste-vm, hyprland-lua
+  install.sh            instalador idempotente (perfis + flags)
+  packages/             base, dev, laptop, android, AUR — fonte única, inclusive da ISO
+  bin/                  brummy (CLI) + helpers
+  config/               vira ~/.config/* por link simbólico
+    hypr/hyprland.lua     config principal (Lua, Hyprland 0.55+)
+    hypr/modules/         perfis de monitor, GPU e trackpoint
+    hypr/legacy/          a config .conf antiga, só para consulta
+    waybar/ kitty/ wofi/ fish/ fastfetch/ gtk-3.0/ gtk-4.0/
+    brummy/hidden-apps.list
+  themes/wallpapers/    papéis de parede (e ORIGEM.md, com as licenças)
+  boot/                 tema Plymouth, gerador de assets, fundo do GRUB
+  iso/                  ISO live com Calamares (archiso rodando em Docker)
+  tools/                vm.sh, check.sh, host-keys.sh
+  docs/                 as notas técnicas
 ```
+
+### Documentação
+
+| Nota | Assunto |
+|---|---|
+| `docs/install.md` | os caminhos de instalação, do mais fácil ao mais cru |
+| `docs/hyprland-lua.md` | a migração para Lua, equivalências e como validar |
+| `docs/teste-vm.md` | roteiro de teste em VM e como sair de cada enrosco |
+| `docs/janelas-clicaveis.md` | o plano das barras de título sobre o tiling |
+| `docs/profiles.md`, `docs/dev.md`, `docs/boot.md` | perfis, bundle dev, boot |
+
+---
 
 ## Roadmap
 
-- [x] v1 — scaffold + perfis + dev + boot + Nautilus
-- [x] v1.1 — primeiro boot em VM analisado: config migrada para Lua (Hyprland 0.57
-      aposenta o `.conf`), wallpaper/GTK escuro/cursor corrigidos, Waybar que não
-      deixa buraco em máquina sem GPU, launcher sem apps parasitas
-- [x] v1.1a — `hyprland --verify-config` na VM: **config ok** (a migração Lua
-      está validada; `hl.print` não existia e foi corrigido)
-- [ ] v1.2 — `./install.sh` completo validado de ponta a ponta
-- [ ] v1.3 — janelas clicáveis sobre o tiling (hyprbars + taskbar):
-      desenhado em `docs/janelas-clicaveis.md`, à espera da v1.2
-- [ ] v1.3 — ISO live (esqueleto pronto em `iso/`, falta a primeira build)
-- [ ] futuro: LFS / kernel próprio pra aprender (separado deste repo)
+- [x] **v1** — scaffold, perfis, bundle dev, boot com logo, Nautilus
+- [x] **v1.1** — primeiro boot analisado em vídeo e corrigido: config migrada
+      para Lua (o `.conf` sai na 0.57), papel de parede, tema escuro nos apps
+      GTK4, cursor, Waybar sem buracos, launcher sem apps parasitas, logo do
+      Brummy no fastfetch
+- [x] **v1.1a** — `hyprland --verify-config` na VM: **config ok**
+- [ ] **v1.2** — `./install.sh` completo validado numa máquina limpa
+- [ ] **v1.3** — janelas clicáveis sobre o tiling (hyprbars + taskbar), plano em
+      `docs/janelas-clicaveis.md`
+- [ ] **v1.4** — primeira build da ISO live
+- [ ] futuro — LFS / kernel próprio, para aprender (em outro repo)
 
-Feito pra usar todo dia, mexer por prazer.
+---
+
+## Licença
+
+MIT — veja `LICENSE`. Os papéis de parede têm origens distintas e estão
+documentados em `themes/wallpapers/ORIGEM.md`.
+
+Feito pra usar todo dia, e mexer por prazer.
