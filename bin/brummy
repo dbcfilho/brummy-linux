@@ -183,9 +183,11 @@ EOF
       echo "FALTA hyprland.lua (rode ./install.sh)"
     fi
     [[ -f "$HOME/.config/hypr/hyprland.conf" ]] && echo "AVISO: hyprland.conf solto pode ganhar do .lua — mova ou apague"
-    if command -v hyprland &>/dev/null || command -v Hyprland &>/dev/null; then
-      ver=$(Hyprland --version 2>/dev/null | head -1 || hyprland --version 2>/dev/null | head -1)
-      echo "  $ver"
+    # Hyprland --version dá SIGABRT (exit 134) sem XDG_RUNTIME_DIR; o guard
+    # evita derrubar o doctor fora de sessão gráfica (ex.: via SSH).
+    if [[ -n "${XDG_RUNTIME_DIR:-}" ]] && (command -v hyprland &>/dev/null || command -v Hyprland &>/dev/null); then
+      ver=$(Hyprland --version 2>/dev/null | head -1 || hyprland --version 2>/dev/null | head -1) || ver=""
+      [[ -n "$ver" ]] && echo "  $ver"
     fi
     command -v start-hyprland &>/dev/null && echo "ok start-hyprland" || echo "FALTA start-hyprland (Hyprland < 0.53?)"
     grep -q 'start-hyprland' /etc/greetd/config.toml 2>/dev/null && echo "ok greetd usa start-hyprland" || echo "AVISO: greetd não usa start-hyprland (rode ./install.sh)"
@@ -197,7 +199,7 @@ EOF
     wp=$(readlink -f "$HOME/Pictures/Brummy/current.jpg" 2>/dev/null || true)
     [[ -f "$wp" ]] && echo "ok $(basename "$wp")" || echo "FALTA wallpaper (rode ./install.sh)"
     echo "--- base ---"
-    for b in hyprland Hyprland waybar wofi kitty fish greetd tuigreet thunar nautilus helium-browser firefox codium nvim docker obsidian discord qbittorrent gparted etcher gnome-boxes easyeffects claude-desktop opencode steam lutris bottles protonup-qt mangohud gamemoderun vulkaninfo glxinfo virsh virt-manager qemu-system-x86_64 btop radeontop mission-center claudebar; do
+    for b in hyprland Hyprland waybar wofi kitty fish greetd tuigreet thunar nautilus helium-browser firefox codium nvim docker obsidian discord qbittorrent gparted etcher gnome-boxes easyeffects claude-desktop opencode steam lutris bottles protonup-qt mangohud gamemoderun vulkaninfo glxinfo virsh virt-manager qemu-system-x86_64 btop radeontop missioncenter claudebar; do
       command -v "$b" &>/dev/null && echo "ok $b" || echo "FALTA $b"
     done
     echo "--- dev (Java/Node/Python/DBs) ---"

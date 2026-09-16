@@ -66,7 +66,9 @@ local autostart = {
   "hyprpaper",
   -- Aplica o wallpaper do Brummy via IPC (resolve o link ~/Pictures/Brummy/current)
   localBin .. "brummy-wallpaper-apply",
-  "nwg-dock-hyprland -d -mb 12 -i 48 -w 6 -hotspot_delay 150 -cursor_insert",
+  -- Dock fixa embaixo, ocupando a largura toda (-f), launcher Brummy no
+  -- canto esquerdo (-lp start); o botão abre o wofi (nwg-drawer não é usado)
+  "nwg-dock-hyprland -r -mb 12 -i 48 -w 6 -f -lp start -c \"wofi --show drun --allow-images\" -ico ~/.local/share/brummy/logo.png",
   "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
   "wl-paste --watch cliphist store",
   "udiskie --tray",

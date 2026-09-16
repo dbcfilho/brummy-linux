@@ -80,7 +80,12 @@ echo "==> [brummy] atualizando sistema (pacman)..."
 sudo pacman -Syu --needed --noconfirm
 
 # paru para AUR (waybar já está no extra, mas deixamos porta aberta)
-if ! command -v paru &>/dev/null && ! command -v yay &>/dev/null; then
+# Checa se funciona, não só se o binário existe: um paru velho linkado contra
+# libalpm.so < atual (o -Syu acima sobe a soname) existe mas está quebrado,
+# e aí todo o AUR falha em silêncio.
+paru_ok() { command -v paru &>/dev/null && paru --version &>/dev/null 2>&1; }
+yay_ok()  { command -v yay  &>/dev/null && yay  --version &>/dev/null 2>&1; }
+if ! paru_ok && ! yay_ok; then
   echo "==> [brummy] instalando paru (AUR helper)..."
   sudo pacman -S --needed --noconfirm base-devel git
   tmp=$(mktemp -d)
@@ -90,10 +95,24 @@ if ! command -v paru &>/dev/null && ! command -v yay &>/dev/null; then
     git clone https://aur.archlinux.org/paru.git "$tmp/paru"
     (cd "$tmp/paru" && MAKEFLAGS="-j2" CARGO_BUILD_JOBS=2 makepkg -si --noconfirm)
   fi
+  # paru-bin é prebuilt; se veio linkado contra libalpm.so antiga, instalar
+  # de novo não resolve — compila a fonte para relinkar contra a atual.
+  if ! paru_ok; then
+    echo "  (paru-bin veio quebrado, compilando a fonte...)"
+    if git clone https://aur.archlinux.org/paru.git "$tmp/paru"; then
+      # o paru-bin quebrado continua instalado e conflita com o paru fonte
+      sudo -n pacman -R --noconfirm paru-bin paru-bin-debug 2>/dev/null || true
+      (cd "$tmp/paru" && MAKEFLAGS="-j2" CARGO_BUILD_JOBS=2 makepkg -si --noconfirm)
+    fi
+  fi
   rm -rf "$tmp"
 fi
 AUR="paru -S --needed --noconfirm"
-command -v paru &>/dev/null || AUR="yay -S --needed --noconfirm"
+paru_ok || AUR="yay -S --needed --noconfirm"
+
+# Alguns PKGBUILD (ex: whitesur-gtk-theme) usam `setterm` e quebram sem TERM
+# (rodando via nohup/SSH). Garante um TERM mínimo pro build não falhar.
+export TERM="${TERM:-xterm}"
 
 echo "==> [brummy] instalando pacotes..."
 # Bundle opinionado estilo Omarchy: lê de packages/*.packages
@@ -176,12 +195,12 @@ mkdir -p "$HOME/Pictures/Brummy"
 for w in "$REPO_DIR/themes/wallpapers/"*.jpg "$REPO_DIR/themes/wallpapers/"*.jpeg "$REPO_DIR/themes/wallpapers/"*.png; do
   [[ -f "$w" ]] && cp -f "$w" "$HOME/Pictures/Brummy/"
 done
-# Padrão: ibitipoca-16x9.jpg; respeita troca já feita via `brummy wallpaper`.
+# Padrão: space1.jpg; respeita troca já feita via `brummy wallpaper`.
 # O link se chama current.JPG porque o hyprpaper escolhe o decodificador pela
 # extensão — assim ele aplica o papel de parede sozinho, mesmo que nada mais
 # do Brummy tenha sido instalado ainda.
 if [[ ! -L "$HOME/Pictures/Brummy/current.jpg" ]]; then
-  ln -sf "$HOME/Pictures/Brummy/ibitipoca-16x9.jpg" "$HOME/Pictures/Brummy/current.jpg"
+  ln -sf "$HOME/Pictures/Brummy/space1.jpg" "$HOME/Pictures/Brummy/current.jpg"
 fi
 # Sobra de versão anterior: o link sem extensão não servia para nada
 [[ -L "$HOME/Pictures/Brummy/current" ]] && rm -f "$HOME/Pictures/Brummy/current"
@@ -311,7 +330,7 @@ fi  # fim dos serviços de sistema
 
 echo "==> [brummy] claudebar (uso Claude na Waybar)..."
 if ! command -v claudebar &>/dev/null; then
-  curl -fsSL https://raw.githubusercontent.com/mryll/claudebar/master/claudebar -o "$HOME/.local/bin/claudebar" && chmod +x "$HOME/.local/bin/claudebar" || echo "  claudebar via curl falhou (tente AUR claudebar-git)"
+  curl -fsSL https://raw.githubusercontent.com/mryll/claudebar/master/claudebar -o "$HOME/.local/bin/claudebar" && chmod +x "$HOME/.local/bin/claudebar" || echo "  claudebar via curl falhou (tente AUR claudebar)"
 fi
 chmod +x "$REPO_DIR/config/waybar/scripts/"*.sh 2>/dev/null || true
 

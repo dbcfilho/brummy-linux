@@ -4,9 +4,11 @@
 # start-hyprland (Hyprland 0.53+) é o jeito suportado de subir a sessão:
 # traz crash recovery e safe mode. Chamar o binário `Hyprland` direto gera o
 # aviso "Hyprland was started without start-hyprland" e perde essas proteções.
+# NÃO use `--remember-session`: o tuigreet grava o nome da sessão ("Hyprland")
+# no cache e o greetd acaba executando o binário direto, sem o wrapper.
 [terminal]
 vt = 1
 
 [default_session]
-command = "tuigreet --cmd start-hyprland --remember --remember-session --asterisks --time --greeting 'Brummy Linux'"
+command = "tuigreet --cmd start-hyprland --remember --asterisks --time --greeting 'Brummy Linux'"
 user = "greeter"
