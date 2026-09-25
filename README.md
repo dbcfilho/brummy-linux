@@ -8,10 +8,11 @@ descobrível e clicável como GNOME/KDE. Quem sabe os atalhos voa; quem não sab
 tem barra com bandeja, launcher com ícones, gerenciador de arquivos gráfico e um
 `brummy help` que conta tudo.
 
-> **Estado: v1.1, em validação.** A config do Hyprland foi migrada para Lua e
-> passa no `hyprland --verify-config`. O `install.sh` completo ainda não foi
-> validado de ponta a ponta numa máquina limpa — veja o [roadmap](#roadmap).
-> Use por sua conta e risco, de preferência numa VM.
+> **Estado: v1.2.** A config do Hyprland está em Lua, passa no
+> `hyprland --verify-config`, e o `install.sh` completo foi validado de ponta a
+> ponta numa VM limpa. Falta rodar no hardware de verdade dos perfis `desktop`
+> e `thinkpad` — veja o [roadmap](#roadmap). Com `/` em btrfs, toda atualização
+> tira snapshot antes.
 
 ---
 
@@ -64,11 +65,19 @@ cd brummy-linux
 ./install.sh --no-dev             # pula o bundle de desenvolvimento
 ./install.sh --user-only          # só configs e tema, sem tocar em pacotes
 ./install.sh --boot-only          # só refaz GRUB + Plymouth
+./install.sh --no-snapshots       # não configura snapper, mesmo em btrfs
 ```
+
+Cada execução deixa um log em `~/.local/state/brummy/install-*.log`.
+
+**Escolha btrfs no archinstall.** Com `/` em btrfs, o instalador liga snapper +
+snap-pac + grub-btrfs: todo `pacman` tira um snapshot antes e depois, e dá para
+dar boot num snapshot pelo GRUB se uma atualização quebrar a sessão. Detalhes e
+o caminho de volta em `docs/snapshots.md`.
 
 ### Perfis
 
-Detectados sozinhos pelo DMI e pelo `lspci`:
+Detectados sozinhos pelo DMI (nome e tipo de chassi), pela bateria e pelo `lspci`:
 
 | Perfil | Máquina |
 |---|---|
@@ -96,12 +105,15 @@ brummy doctor      diagnóstico: o que falta, links quebrados, tema, wallpaper
 brummy wallpaper   list | set <arquivo> | next
 brummy hide        esconde apps parasitas do launcher (--list, --undo)
 brummy fix         conserta links de config quebrados
-brummy update      atualiza o sistema e repuxa os links do repo
+brummy update      snapshot, atualiza o sistema, recompila plugins e repuxa os links
+brummy snapshot    list | create <descrição> | rollback
+brummy uninstall   tira os links e devolve os backups das suas configs
 ```
 
 O `brummy doctor` é o primeiro lugar para olhar quando algo parecer errado. Ele
 diz, entre outras coisas, se algum link de config está apontando para o vazio —
-que é a causa nº 1 de "o login gráfico não entra".
+que é a causa nº 1 de "o login gráfico não entra" —, quais pacotes do AUR
+falharam em silêncio na instalação e se os snapshots estão ativos.
 
 ---
 
@@ -111,7 +123,7 @@ Tudo que o sistema usa está versionado aqui. `~/.config/hypr`, `~/.config/wayba
 e companhia são **links** para `config/` neste repo: editou, já está no git.
 
 ```bash
-./tools/check.sh                  # sintaxe, JSON, Lua e todos os subcomandos
+./tools/check.sh                  # shellcheck, JSON, Lua e todos os subcomandos
 ./tools/vm.sh deps                # o que instalar para testar em VM
 ./tools/vm.sh achar               # acha discos de VM que você já tem
 ./tools/vm.sh overlay <disco>     # boota um deles sem escrever nele
@@ -119,6 +131,10 @@ e companhia são **links** para `config/` neste repo: editou, já está no git.
 ./tools/vm.sh ssh                 # terminal na VM, sem depender de atalho
 ./tools/host-keys.sh liberar      # solta o SUPER do host (GNOME) e devolve depois
 ```
+
+O mesmo `check.sh` roda no GitHub Actions a cada push
+(`.github/workflows/check.yml`), junto com um `hyprland --verify-config` num
+container Arch para cada perfil — ainda experimental, não reprova o commit.
 
 Dentro da VM, a checagem que importa:
 
@@ -131,7 +147,7 @@ hyprland --verify-config
 ```
 brummy-linux/
   install.sh            instalador idempotente (perfis + flags)
-  packages/             base, dev, laptop, android, AUR — fonte única, inclusive da ISO
+  packages/             base, dev, laptop, btrfs, android, AUR — fonte única, inclusive da ISO
   bin/                  brummy (CLI) + helpers
   config/               vira ~/.config/* por link simbólico
     hypr/hyprland.lua     config principal (Lua, Hyprland 0.55+)
@@ -143,6 +159,7 @@ brummy-linux/
   boot/                 tema Plymouth, gerador de assets, fundo do GRUB
   iso/                  ISO live com Calamares (archiso rodando em Docker)
   tools/                vm.sh, check.sh, host-keys.sh
+  .github/workflows/    CI: check.sh + verify-config por perfil
   docs/                 as notas técnicas
 ```
 
@@ -153,6 +170,7 @@ brummy-linux/
 | `docs/install.md` | os caminhos de instalação, do mais fácil ao mais cru |
 | `docs/hyprland-lua.md` | a migração para Lua, equivalências e como validar |
 | `docs/teste-vm.md` | roteiro de teste em VM e como sair de cada enrosco |
+| `docs/snapshots.md` | snapper + grub-btrfs, e como voltar a um snapshot |
 | `docs/janelas-clicaveis.md` | o plano das barras de título sobre o tiling |
 | `docs/profiles.md`, `docs/dev.md`, `docs/boot.md` | perfis, bundle dev, boot |
 
@@ -166,7 +184,11 @@ brummy-linux/
       GTK4, cursor, Waybar sem buracos, launcher sem apps parasitas, logo do
       Brummy no fastfetch
 - [x] **v1.1a** — `hyprland --verify-config` na VM: **config ok**
-- [ ] **v1.2** — `./install.sh` completo validado numa máquina limpa
+- [x] **v1.2** — `./install.sh` completo validado numa VM limpa (hyprpaper 0.8,
+      greetd, dock); CI com shellcheck; snapshots antes de atualizar;
+      `brummy uninstall`; log da instalação
+- [ ] **v1.2a** — `./install.sh` no hardware real: T430 (`thinkpad`) e
+      RX 6600 XT (`desktop`)
 - [ ] **v1.3** — janelas clicáveis sobre o tiling (hyprbars + taskbar), plano em
       `docs/janelas-clicaveis.md`
 - [ ] **v1.4** — primeira build da ISO live
