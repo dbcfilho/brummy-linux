@@ -1,0 +1,7 @@
+# Brummy Linux — snapshots (só instalado quando / é btrfs)
+# snapper cria/gerencia, snap-pac tira snapshot antes/depois de todo pacman,
+# grub-btrfs põe os snapshots no menu do GRUB (grub-btrfsd precisa do inotify).
+snapper
+snap-pac
+grub-btrfs
+inotify-tools

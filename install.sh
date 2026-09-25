@@ -7,31 +7,56 @@ set -euo pipefail
 # auto: DMI "ThinkPad T430" (ou outro ThinkPad/laptop) -> thinkpad;
 #       VGA AMD discreta (RX 6600 XT) -> desktop; senão -> general.
 # --no-dev: pula bundle dev. --with-android: inclui Android Studio (pesado, ~1GB+).
+# --no-snapshots: não configura snapper mesmo com / em btrfs.
 PROFILE="auto"
 WITH_DEV=1
 WITH_ANDROID=0
 WITH_BOOT=1
+WITH_SNAPSHOTS=1
 BOOT_ONLY=0
 USER_ONLY=0
-for arg in "$@"; do
+while (( $# )); do
+  arg="$1"; shift
   case "$arg" in
     --profile=*) PROFILE="${arg#*=}" ;;
+    --profile) PROFILE="${1:-auto}"; shift || true ;;   # aceita "--profile thinkpad" também
     --no-dev) WITH_DEV=0 ;;
     --with-android) WITH_ANDROID=1 ;;
     --no-boot) WITH_BOOT=0 ;;
+    --no-snapshots) WITH_SNAPSHOTS=0 ;;
     --boot-only) BOOT_ONLY=1 ;;
     --user-only) USER_ONLY=1 ;;   # só a camada de usuário: configs, tema, helpers
-    -h|--help) echo "Uso: ./install.sh [--profile auto|desktop|thinkpad|general] [--no-dev] [--with-android] [--no-boot] [--boot-only] [--user-only]"; exit 0 ;;
+    -h|--help) echo "Uso: ./install.sh [--profile auto|desktop|thinkpad|general] [--no-dev] [--with-android] [--no-boot] [--no-snapshots] [--boot-only] [--user-only]"; exit 0 ;;
     *) echo "[brummy] arg desconhecido: $arg (ignorado)" ;;
   esac
 done
+case "$PROFILE" in
+  auto|desktop|thinkpad|general) ;;
+  *) echo "ERRO: perfil '$PROFILE' não existe (use auto, desktop, thinkpad ou general)"; exit 1 ;;
+esac
+
+# Log de tudo que o instalador fala: quando der erro na máquina de alguém,
+# é este arquivo que conta o que aconteceu.
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/brummy"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/install-$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "==> [brummy] log desta instalação: $LOG_FILE"
 
 detect_profile() {
-  local dmi=""
+  local dmi="" chassis=""
   [[ -r /sys/devices/virtual/dmi/id/product_name ]] && dmi="$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null)"
-  if echo "$dmi" | grep -qi 'thinkpad\|latitude\|elitebook\|probook\|vivo\|aspire\|ideapad'; then
+  [[ -r /sys/devices/virtual/dmi/id/chassis_type ]] && chassis="$(cat /sys/devices/virtual/dmi/id/chassis_type 2>/dev/null)"
+  # Só linhas que são sempre notebook. Aspire e Vivo têm desktop também,
+  # por isso ficaram de fora: quem decide é o chassi ou a bateria, abaixo.
+  if echo "$dmi" | grep -qi 'thinkpad\|latitude\|elitebook\|probook\|ideapad'; then
     echo "thinkpad"; return
   fi
+  # SMBIOS chassis type: 8 portátil, 9 laptop, 10 notebook, 14 sub-notebook,
+  # 30 tablet, 31 conversível, 32 destacável.
+  case "$chassis" in
+    8|9|10|14|30|31|32) echo "thinkpad"; return ;;
+  esac
   if [[ -d /sys/class/power_supply/BAT0 || -d /sys/class/power_supply/BAT1 ]]; then
     echo "thinkpad"; return
   fi
@@ -55,7 +80,7 @@ TARGET_BIN="$HOME/.local/bin/brummy"
 
 echo "==> [brummy] checando base..."
 if [[ ! -f /etc/arch-release ]]; then
-  echo "ERRO: Brummy v0.1 só suporta Arch Linux. Você está em: $(cat /etc/os-release 2>/dev/null | grep PRETTY || echo desconhecido)"
+  echo "ERRO: o Brummy só roda sobre Arch Linux. Você está em: $(cat /etc/os-release 2>/dev/null | grep PRETTY || echo desconhecido)"
   exit 1
 fi
 
@@ -186,6 +211,48 @@ elif [[ "$PROFILE" == "thinkpad" ]]; then
   sudo tlp start 2>/dev/null || true
 else
   echo "==> [brummy] perfil $PROFILE: sem stack laptop (TLP/thinkfan só no thinkpad)"
+fi
+
+# Snapshots: numa rolling, uma atualização ruim pode deixar a sessão gráfica
+# sem subir. Com / em btrfs, o snapper + snap-pac tiram um snapshot antes e
+# depois de todo pacman, e o grub-btrfs põe esses snapshots no menu do GRUB
+# para dar boot num estado que funcionava. Sem btrfs, só avisa.
+if [[ "$BOOT_ONLY" == "1" || "$WITH_SNAPSHOTS" == "0" ]]; then
+  echo "==> [brummy] snapshots pulados"
+elif [[ "$(findmnt -no FSTYPE / 2>/dev/null)" == "btrfs" ]]; then
+  echo "==> [brummy] snapshots (/ em btrfs: snapper + snap-pac + grub-btrfs)..."
+  while read -r pkg; do
+    [[ "$pkg" =~ ^#.*$ || -z "$pkg" ]] && continue
+    sudo pacman -S --needed --noconfirm "$pkg" || echo "[brummy] snapshots pacman pulou: $pkg"
+  done < <(grep -v '^#' "$REPO_DIR/packages/btrfs.packages" | grep -v '^$')
+  if [[ -f /etc/snapper/configs/root ]]; then
+    echo "  snapper já configurado para /"
+  elif command -v snapper &>/dev/null; then
+    # O archinstall cria o subvolume @.snapshots montado em /.snapshots, e o
+    # create-config recusa se o diretório já existe. Receita da Arch Wiki:
+    # desmonta, deixa o snapper criar o dele, troca pelo @.snapshots de novo.
+    if mountpoint -q /.snapshots; then
+      sudo umount /.snapshots && sudo rmdir /.snapshots \
+        && sudo snapper -c root create-config / \
+        && sudo btrfs subvolume delete /.snapshots \
+        && sudo mkdir /.snapshots \
+        && sudo mount -a \
+        || echo "  AVISO: não consegui configurar o snapper sobre o /.snapshots existente — veja docs/snapshots.md"
+    else
+      sudo snapper -c root create-config / || echo "  AVISO: snapper create-config falhou — veja docs/snapshots.md"
+    fi
+    sudo chmod 750 /.snapshots 2>/dev/null || true
+  fi
+  if [[ -f /etc/snapper/configs/root ]]; then
+    # Retenção modesta: snap-pac cria dois por transação e o disco enche rápido.
+    sudo snapper -c root set-config NUMBER_LIMIT=10 NUMBER_LIMIT_IMPORTANT=5 TIMELINE_CREATE=no 2>/dev/null || true
+    sudo systemctl enable --now snapper-cleanup.timer 2>/dev/null || true
+    sudo systemctl enable --now grub-btrfsd.service 2>/dev/null || true
+    echo "  ok: todo pacman agora tira snapshot antes/depois (veja: brummy snapshot)"
+  fi
+else
+  echo "==> [brummy] snapshots: / não é btrfs ($(findmnt -no FSTYPE / 2>/dev/null || echo '?')) — sem rede de segurança automática"
+  echo "  (numa instalação nova, escolha btrfs no archinstall para ganhar snapshots)"
 fi
 
 fi  # fim do bloco que precisa de root (pacotes, perfis de máquina)
@@ -418,8 +485,8 @@ if [[ "$BOOT_ONLY" == "1" ]]; then
 fi
 
 echo ""
-echo "==> Pronto! Brummy Linux v0.1 instalado."
+echo "==> Pronto! Brummy Linux instalado."
 echo "  - Logout e entre na sessão Hyprland"
-echo "  - SUPER+D: launcher (tradicional com ícones)"
-echo "  - SUPER+Q: terminal kitty | SUPER+E: thunar | SUPER+L: lock"
-echo "  - Rode: brummy help"
+echo "  - SUPER+ESPAÇO: launcher | SUPER+Q: terminal | SUPER+E: arquivos | SUPER+L: bloquear"
+echo "  - Rode: brummy help   (algo estranho? brummy doctor)"
+echo "  - Log desta instalação: $LOG_FILE"

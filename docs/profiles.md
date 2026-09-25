@@ -5,7 +5,7 @@ Base é igual em todo PC (Hyprland macOS híbrido + Waybar + bundle). O que muda
 | Perfil | Quando | Monitores | GPU | Energia |
 |---|---|---|---|---|
 | `desktop` | Xeon + RX 6600 XT, 2x 1080p | DP-1 esq + HDMI-A-1 dir + fallback | `gpu-amd` (RADV/radeonsi) | gaming, sem TLP |
-| `thinkpad` | T430 / qualquer laptop (auto via DMI ou bateria) | eDP-1 1366x768 + fallback externo | `gpu-intel` (i965) | TLP + thermald + thinkfan |
+| `thinkpad` | T430 / qualquer laptop (auto via nome ou tipo de chassi no DMI, ou bateria) | eDP-1 1366x768 + fallback externo | `gpu-intel` (i965) | TLP + thermald + thinkfan |
 | `general` | resto / hardware desconhecido | `preferred auto` tudo | auto (AMD discreta? RADV : Intel) | sem TLP |
 
 ## Uso

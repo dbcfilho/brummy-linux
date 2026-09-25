@@ -8,6 +8,10 @@ hyprlock
 hypridle
 hyprpaper
 xdg-desktop-portal-hyprland
+# hyprpm compila os plugins (hyprbars, v1.3) contra a versão instalada
+cmake
+meson
+cpio
 xdg-desktop-portal-gtk
 waybar
 nwg-dock-hyprland

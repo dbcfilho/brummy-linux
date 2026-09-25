@@ -42,8 +42,10 @@ E no autostart do `hyprland.lua`, antes da waybar:
 "hyprpm reload -n",
 ```
 
-Precisa de `cmake`, `meson`, `cpio` e `base-devel` (já estão no
-`packages/base.packages`, menos `cmake`/`meson`/`cpio` — conferir).
+Precisa de `cmake`, `meson`, `cpio` e `base-devel` — todos já estão no
+`packages/base.packages`. Depois de cada atualização do Hyprland o plugin
+precisa ser recompilado; o `brummy update` já roda `hyprpm update` quando
+encontra plugins instalados.
 
 ### Configuração (rascunho, a validar)
 
