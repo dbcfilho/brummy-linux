@@ -134,7 +134,7 @@ e companhia são **links** para `config/` neste repo: editou, já está no git.
 
 O mesmo `check.sh` roda no GitHub Actions a cada push
 (`.github/workflows/check.yml`), junto com um `hyprland --verify-config` num
-container Arch para cada perfil — ainda experimental, não reprova o commit.
+container Arch para cada perfil: config inválida deixa o commit vermelho.
 
 Dentro da VM, a checagem que importa:
 

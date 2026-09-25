@@ -23,9 +23,6 @@ jobs:
     name: hyprland --verify-config (${{ matrix.profile }})
     runs-on: ubuntu-latest
     container: archlinux:latest
-    # Experimental até provar que o verify-config roda sem sessão gráfica no
-    # runner. Falha aparece no resumo, mas não pinta o commit de vermelho.
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
