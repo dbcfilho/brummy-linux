@@ -15,7 +15,7 @@
     "on-click": "wofi --show drun --allow-images"
   },
 
-  "hyprland/workspaces": { "format": "{icon}", "on-click": "activate", "on-scroll-up": "hyprctl dispatch workspace e+1", "on-scroll-down": "hyprctl dispatch workspace e-1" },
+  "hyprland/workspaces": { "format": "{icon}", "on-click": "activate", "on-scroll-up": "hyprctl dispatch 'hl.dsp.focus({ workspace = \"e+1\" })'", "on-scroll-down": "hyprctl dispatch 'hl.dsp.focus({ workspace = \"e-1\" })'" },
   "hyprland/window": { "format": "{title}", "max-length": 45, "separate-outputs": true },
 
   "clock": { "format": "{:%a %d %b  %H:%M}", "tooltip-format": "{:%A %d/%m/%Y}" },

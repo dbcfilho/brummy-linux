@@ -49,6 +49,17 @@ else
   echo "  (pulado: instale lua5.4 para checar — sudo apt install lua5.4)"
 fi
 
+head_ "hyprctl dispatch com sintaxe Lua"
+# Config em Lua: `hyprctl dispatch X` vira hl.dispatch(X). A sintaxe antiga
+# (hyprctl dispatch workspace e+1) falha calada — foi assim que o scroll dos
+# workspaces na Waybar quebrou.
+antigos="$(grep -rnE "hyprctl dispatch +[^'\"\$ ]" config bin 2>/dev/null | grep -v '/legacy/' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*(#|--)' || true)"
+if [[ -z "$antigos" ]]; then
+  ok "nenhum hyprctl dispatch no formato antigo"
+else
+  bad "hyprctl dispatch no formato antigo:"; echo "$antigos" | sed 's/^/        /'
+fi
+
 head_ "tools/vm.sh: todo subcomando roda sem variável não associada"
 # set -u só estoura em tempo de execução, então cada caminho precisa ser
 # percorrido de verdade. Stubs no PATH para nada de pesado acontecer.
