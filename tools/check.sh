@@ -49,6 +49,68 @@ else
   echo "  (pulado: instale lua5.4 para checar — sudo apt install lua5.4)"
 fi
 
+head_ "hyprbars: o bloco do plugin, com e sem o plugin carregado"
+# O --verify-config não carrega plugins (hl.plugin.load só registra o
+# caminho), então o bloco do hyprbars nunca é validado por ele. Aqui ele
+# roda com um `hl` de mentira que confere o que o main.cpp do plugin exige.
+LUA="$(command -v lua5.4 || command -v lua || true)"
+if [[ -n "$LUA" ]]; then
+  for modo in com sem; do
+    out="$(HOME="$(mktemp -d)" MODO="$modo" "$LUA" - <<'LUAEOF' 2>&1
+local modo = os.getenv("MODO")
+local botoes, plugcfg, regras = {}, nil, {}
+local stub
+stub = setmetatable({}, { __index = function() return stub end, __call = function() return stub end })
+hl = setmetatable({}, { __index = function() return stub end })
+hl.plugin = { load = function() end }
+if modo == "com" then
+  hl.plugin.hyprbars = { add_button = function(b) botoes[#botoes + 1] = b end }
+end
+hl.config = function(t) if t.plugin then plugcfg = t.plugin end end
+hl.window_rule = function(t) regras[#regras + 1] = t end
+assert(loadfile("config/hypr/hyprland.lua"))()
+
+local erros = {}
+local function falha(m) erros[#erros + 1] = m end
+local function cor(v) return math.type(v) == "integer" or (type(v) == "string" and v:match("^rgba?%(%x+%)$")) end
+local function acao(v) return type(v) == "string" and v:match("^hyprctl dispatch '.*hl%.dsp%.") end
+-- opções registradas pelo main.cpp do hyprbars (addConfigValueV2)
+local conhecidas = { enabled=1, bar_color=1, bar_height=1, bar_blur=1, bar_title_enabled=1,
+  bar_text_size=1, bar_text_weight=1, bar_text_font=1, bar_text_align=1, bar_buttons_alignment=1,
+  bar_part_of_window=1, bar_precedence_over_border=1, bar_padding=1, bar_button_padding=1,
+  icon_on_hover=1, buttons_on_hover=1, inactive_button_color=1, on_double_click=1, col=1 }
+
+if modo == "com" then
+  if #botoes == 0 then falha("nenhum add_button chamado") end
+  for i, b in ipairs(botoes) do
+    if not cor(b.bg_color) then falha("botão " .. i .. ": bg_color inválido") end
+    if not cor(b.fg_color) then falha("botão " .. i .. ": fg_color inválido (é obrigatório)") end
+    if math.type(b.size) ~= "integer" then falha("botão " .. i .. ": size precisa ser inteiro") end
+    if type(b.icon) ~= "string" then falha("botão " .. i .. ": icon precisa ser string") end
+    if not acao(b.action) then falha("botão " .. i .. ": action não é hyprctl dispatch 'hl.dsp...'") end
+  end
+  local hb = plugcfg and plugcfg.hyprbars
+  if not hb then falha("hl.config({ plugin = { hyprbars = ... } }) não foi chamado")
+  else
+    for k in pairs(hb) do if not conhecidas[k] then falha("opção desconhecida do hyprbars: " .. k) end end
+    if hb.on_double_click and not acao(hb.on_double_click) then falha("on_double_click com sintaxe antiga") end
+  end
+else
+  if plugcfg then falha("config do hyprbars aplicada sem o plugin carregado") end
+  for _, r in ipairs(regras) do
+    for k in pairs(r) do
+      if type(k) == "string" and k:match("^hyprbars:") then falha("regra " .. k .. " fora do if (erro sem o plugin)") end
+    end
+  end
+end
+if #erros > 0 then print(table.concat(erros, "\n")); os.exit(1) end
+LUAEOF
+)" && ok "hyprland.lua $modo o plugin" || { bad "hyprland.lua $modo o plugin"; echo "$out" | sed 's/^/        /'; }
+  done
+else
+  echo "  (pulado: instale lua5.4 para checar)"
+fi
+
 head_ "hyprctl dispatch com sintaxe Lua"
 # Config em Lua: `hyprctl dispatch X` vira hl.dispatch(X). A sintaxe antiga
 # (hyprctl dispatch workspace e+1) falha calada — foi assim que o scroll dos
@@ -59,6 +121,28 @@ if [[ -z "$antigos" ]]; then
 else
   bad "hyprctl dispatch no formato antigo:"; echo "$antigos" | sed 's/^/        /'
 fi
+
+head_ "brummy-minimizados com hyprctl de mentira"
+STUB="$(mktemp -d)"
+cat > "$STUB/hyprctl" <<'SH'
+#!/bin/sh
+case "$1 $2" in
+  "clients -j") echo '[{"address":"0xaa","class":"kitty","title":"fish","workspace":{"id":-98,"name":"special:minimizado"}},{"address":"0xbb","class":"firefox","title":"x","workspace":{"id":1,"name":"1"}}]' ;;
+  "activeworkspace -j") echo '{"id":3}' ;;
+  dispatch*) echo "$2" > "$(dirname "$0")/despachado" ;;
+esac
+SH
+chmod +x "$STUB/hyprctl"
+if command -v jq &>/dev/null; then
+  st="$(PATH="$STUB:$PATH" ./bin/brummy-minimizados status)"
+  [[ "$(jq -r .text <<<"$st")" == "󰖰 1" ]] && ok "status conta 1 minimizada" || bad "status: $st"
+  PATH="$STUB:$PATH" ./bin/brummy-minimizados restaurar
+  [[ "$(cat "$STUB/despachado" 2>/dev/null)" == 'hl.dsp.window.move({ workspace = 3, window = "address:0xaa" })' ]] \
+    && ok "restaurar move para o workspace ativo" || bad "restaurar despachou: $(cat "$STUB/despachado" 2>/dev/null)"
+else
+  echo "  (pulado: instale jq)"
+fi
+rm -rf "$STUB"
 
 head_ "tools/vm.sh: todo subcomando roda sem variável não associada"
 # set -u só estoura em tempo de execução, então cada caminho precisa ser

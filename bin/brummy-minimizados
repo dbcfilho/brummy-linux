@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# brummy-minimizados — a gaveta das janelas minimizadas.
+#
+# O Hyprland não tem minimizar: o botão amarelo do hyprbars e o SUPER+M
+# mandam a janela para o workspace special:minimizado. Este script é a volta.
+#
+# Uso: brummy-minimizados status     JSON para a Waybar (vazio = módulo some)
+#      brummy-minimizados lista      o que está na gaveta
+#      brummy-minimizados restaurar  traz uma de volta (escolhe no wofi se >1)
+set -euo pipefail
+GAVETA="special:minimizado"
+
+# endereço<TAB>classe — título, uma por linha
+janelas() {
+  hyprctl clients -j 2>/dev/null | jq -r --arg g "$GAVETA" \
+    '.[] | select(.workspace.name == $g) | "\(.address)\t\(.class) — \(.title)"'
+}
+
+case "${1:-status}" in
+  status)
+    mapfile -t l < <(janelas || true)
+    if (( ${#l[@]} == 0 )); then
+      echo '{"text":""}'
+      exit 0
+    fi
+    tip="$(printf '%s\n' "${l[@]}" | cut -f2 | jq -Rs .)"
+    printf '{"text":"󰖰 %d","tooltip":%s}\n' "${#l[@]}" "$tip"
+    ;;
+  lista)
+    janelas | cut -f2
+    ;;
+  restaurar)
+    mapfile -t l < <(janelas || true)
+    if (( ${#l[@]} == 0 )); then
+      notify-send "Brummy" "Nenhuma janela minimizada" 2>/dev/null || true
+      exit 0
+    fi
+    if (( ${#l[@]} == 1 )); then
+      escolha="${l[0]}"
+    else
+      titulo="$(printf '%s\n' "${l[@]}" | cut -f2 | wofi --dmenu --prompt "Restaurar")" || exit 0
+      escolha="$(printf '%s\n' "${l[@]}" | awk -F'\t' -v t="$titulo" '$2 == t { print; exit }')"
+      [[ -n "$escolha" ]] || exit 0
+    fi
+    addr="${escolha%%$'\t'*}"
+    ws="$(hyprctl activeworkspace -j | jq -r .id)"
+    # Config em Lua: hyprctl dispatch recebe sintaxe hl.dsp, não a antiga.
+    hyprctl dispatch "hl.dsp.window.move({ workspace = $ws, window = \"address:$addr\" })" >/dev/null
+    ;;
+  -h|--help|help)
+    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+    ;;
+  *)
+    echo "uso: brummy-minimizados [status|lista|restaurar]" >&2
+    exit 1
+    ;;
+esac

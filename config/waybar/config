@@ -5,7 +5,7 @@
   "margin-top": 8,
   "margin-left": 12,
   "margin-right": 12,
-  "modules-left": ["custom/apple", "hyprland/workspaces", "hyprland/window"],
+  "modules-left": ["custom/apple", "hyprland/workspaces", "custom/minimizados", "hyprland/window"],
   "modules-center": ["clock"],
   "modules-right": ["custom/claude", "cpu", "memory", "custom/gpu", "custom/temp", "tray", "pulseaudio", "network", "battery", "clock#date", "custom/power"],
 
@@ -16,6 +16,14 @@
   },
 
   "hyprland/workspaces": { "format": "{icon}", "on-click": "activate", "on-scroll-up": "hyprctl dispatch 'hl.dsp.focus({ workspace = \"e+1\" })'", "on-scroll-down": "hyprctl dispatch 'hl.dsp.focus({ workspace = \"e-1\" })'" },
+  "custom/minimizados": {
+    "exec": "~/.local/bin/brummy-minimizados status",
+    "return-type": "json",
+    "format": "{}",
+    "interval": 2,
+    "tooltip": true,
+    "on-click": "~/.local/bin/brummy-minimizados restaurar"
+  },
   "hyprland/window": { "format": "{title}", "max-length": 45, "separate-outputs": true },
 
   "clock": { "format": "{:%a %d %b  %H:%M}", "tooltip-format": "{:%A %d/%m/%Y}" },

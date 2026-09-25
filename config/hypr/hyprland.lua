@@ -1,5 +1,5 @@
 -- ╔══════════════════════════════════════════════════════════════════════╗
--- ║  Brummy Linux v1.1 — Hyprland híbrido estilo macOS (config Lua)      ║
+-- ║  Brummy Linux v1.3 — Hyprland híbrido estilo macOS (config Lua)      ║
 -- ║  Teclado-driven (tiling) + mouse tradicional (arrastar, dock, topbar) ║
 -- ╚══════════════════════════════════════════════════════════════════════╝
 -- Formato Lua (Hyprland 0.55+). O hyprlang (.conf) foi descontinuado e some
@@ -62,6 +62,10 @@ local localBin = (os.getenv("HOME") or "") .. "/.local/bin/"
 -- inexistente escapou). Por isso cada comando vai dentro de pcall: nenhum
 -- autostart pode impedir a sessão de subir.
 local autostart = {
+  -- Plugins do hyprpm (hyprbars). Sem plugin habilitado não faz nada; -n
+  -- avisa na tela se o plugin não carregou (Hyprland atualizado sem
+  -- `hyprpm update`), em vez de a barra sumir sem explicação.
+  "hyprpm reload -n",
   "waybar",
   "hyprpaper",
   -- Aplica o wallpaper do Brummy via IPC (resolve o link ~/Pictures/Brummy/current)
@@ -222,6 +226,61 @@ hl.window_rule({ name = "brummy-jogos",
                  fullscreen = true, no_blur = true, no_shadow = true, immediate = true })
 
 -------------------------------------------------------------------------
+-- JANELAS CLICÁVEIS (hyprbars) -----------------------------------------
+-------------------------------------------------------------------------
+-- Barra de título com fechar / minimizar / maximizar sobre o tiling, que
+-- continua igual. Liga com `brummy bars on` (dentro da sessão). Plano e
+-- fontes em docs/janelas-clicaveis.md.
+--
+-- Sem o plugin carregado, hl.plugin.hyprbars é nil e o bloco é pulado — é
+-- o que acontece no primeiro parse e no `--verify-config`. Quando o hyprpm
+-- carrega o plugin, ele recarrega a config e o bloco passa a valer.
+--
+-- As ações são comandos de shell. Com config em Lua, `hyprctl dispatch`
+-- recebe sintaxe Lua (hl.dsp...); o `hyprctl dispatch killactive` antigo
+-- não funciona mais. O tools/check.sh reprova quem usar a sintaxe velha.
+local dsp = function(lua) return "hyprctl dispatch '" .. lua .. "'" end
+local minimizar  = [[hl.dsp.window.move({ workspace = "special:minimizado", follow = false })]]
+local maximizar  = [[hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" })]]
+
+if hl.plugin ~= nil and hl.plugin.hyprbars ~= nil then
+  hl.config({ plugin = { hyprbars = {
+    bar_height                 = 26,
+    bar_color                  = "rgba(1a1a24ee)",
+    bar_blur                   = true,
+    bar_part_of_window         = true,
+    bar_precedence_over_border = true,
+    bar_buttons_alignment      = "left",    -- bolinhas à esquerda, como no macOS
+    bar_title_enabled          = true,
+    bar_text_align             = "center",
+    bar_text_font              = "Inter",
+    bar_text_size              = 11,
+    bar_padding                = 10,
+    bar_button_padding         = 8,
+    icon_on_hover              = true,      -- o símbolo só aparece com o mouse em cima
+    inactive_button_color      = "rgba(ffffff33)",
+    on_double_click            = dsp(maximizar),
+  }}})
+
+  -- Com os botões à esquerda, o primeiro adicionado fica na ponta:
+  -- fechar, minimizar, maximizar — a ordem do macOS.
+  local btn = hl.plugin.hyprbars.add_button
+  btn({ bg_color = "rgb(ff5f57)", fg_color = "rgb(4d0000)", size = 12, icon = "×",
+        action = dsp("hl.dsp.window.close()") })
+  btn({ bg_color = "rgb(febc2e)", fg_color = "rgb(5a3d00)", size = 12, icon = "−",
+        action = dsp(minimizar) })
+  btn({ bg_color = "rgb(28c840)", fg_color = "rgb(004d00)", size = 12, icon = "+",
+        action = dsp(maximizar) })
+
+  -- Sem barra onde ela atrapalha: launcher, menu de desligar e jogos.
+  -- Fica dentro do if: sem o plugin, "hyprbars:no_bar" é campo desconhecido
+  -- e o Hyprland acusa erro de config.
+  hl.window_rule({ name = "brummy-sem-barra",
+                   match = { class = "^(wofi|wlogout|steam_app.*|gamescope)$" },
+                   ["hyprbars:no_bar"] = true })
+end
+
+-------------------------------------------------------------------------
 -- ATALHOS (ver `brummy apps`) ------------------------------------------
 -------------------------------------------------------------------------
 hl.bind(mainMod .. " + Q",         hl.dsp.exec_cmd(terminal),    { description = "Terminal" })
@@ -242,6 +301,12 @@ hl.bind(mainMod .. " + SHIFT + S",
 hl.bind(mainMod .. " + C",         hl.dsp.window.close())
 hl.bind(mainMod .. " + F",         hl.dsp.window.fullscreen({ action = "toggle" }))
 hl.bind(mainMod .. " + V",         hl.dsp.window.float({ action = "toggle" }))
+-- Minimizar = mandar para a gaveta special:minimizado (o Hyprland não tem
+-- minimizar de verdade). SUPER+SHIFT+M, ou clique no 󰖰 da barra, traz de volta.
+hl.bind(mainMod .. " + M",         hl.dsp.window.move({ workspace = "special:minimizado", follow = false }),
+        { description = "Minimizar" })
+hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd(localBin .. "brummy-minimizados restaurar"),
+        { description = "Restaurar minimizada" })
 hl.bind(mainMod .. " + J",         hl.dsp.window.cycle_next({ next = true }))
 hl.bind(mainMod .. " + K",         hl.dsp.window.cycle_next({ next = false }))
 hl.bind(mainMod .. " + SHIFT + Q", hl.dsp.exit())

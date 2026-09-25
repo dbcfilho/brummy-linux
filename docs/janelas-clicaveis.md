@@ -1,134 +1,128 @@
-# Janelas clicáveis em cima do tiling (planejado, não implementado)
+# Janelas clicáveis em cima do tiling
 
 Objetivo: manter o auto-tiling como está — janela nova entra e se acomoda
 sozinha — mas com botões de fechar, minimizar e maximizar no mouse, como em
 qualquer sistema tradicional. É a promessa "híbrido" do Brummy levada às
 janelas.
 
-**Status: desenhado, não aplicado.** Nada disso está no `install.sh` ainda. A
-ordem combinada é validar a base primeiro (o `./install.sh` completo rodando e
-o visual aparecendo) e só então mexer aqui — plugin em cima de base não testada
-mistura dois problemas.
+**Status (v1.3): implementado, opcional, falta ver na VM.** A config passa no
+`tools/check.sh` e no `--verify-config` do CI; o que nenhum dos dois vê é o
+plugin desenhando de verdade. Liga com:
 
-## O que já funciona hoje, sem plugin nenhum
+```bash
+brummy bars on       # dentro da sessão Hyprland, num terminal
+brummy bars off      # desliga (o plugin continua compilado)
+brummy bars status
+```
+
+## O que funciona sem plugin nenhum
 
 | Ação | Como |
 |---|---|
 | Redimensionar | puxar a borda direto, sem tecla (`resize_on_border = true`) |
 | Mover | arrastar com `ALT` ou `SUPER` |
 | Fechar | `SUPER+C`, ou `SUPER`+clique do meio |
+| Minimizar | `SUPER+M` |
+| Restaurar | `SUPER+SHIFT+M`, ou clique no `󰖰 N` da Waybar |
 | Flutuar/voltar a tilar | `SUPER+V` |
 | Tela cheia | `SUPER+F` |
 
-O que falta é só o **alvo visível pro mouse**: a barra com botões.
+O plugin acrescenta o **alvo visível pro mouse**: a barra com os botões.
 
 ## A peça: hyprbars
 
-Plugin oficial do hyprwm (`hyprland-plugins`). Põe uma barra de título com
-botões em cada janela **sem** mexer no layout — o tiling continua igual. Os
-botões podem ficar à esquerda, em bolinhas coloridas, no estilo macOS.
+Plugin oficial do hyprwm (`hyprland-plugins`). Põe uma barra de título em
+cada janela **sem** mexer no layout. No Brummy: bolinhas à esquerda na ordem
+do macOS (fechar, minimizar, maximizar), símbolo só com o mouse em cima,
+duplo clique na barra maximiza.
 
-### Instalação
+### Por que `brummy bars on` e não o `install.sh`
 
-```bash
-hyprpm update                                            # compila contra a sua versão
-hyprpm add https://github.com/hyprwm/hyprland-plugins
-hyprpm enable hyprbars
-```
+O `hyprpm add` pergunta a versão do Hyprland **pelo socket da sessão** — fora
+dela ele falha. Então a ativação é um comando para rodar de dentro da sessão.
+O `brummy bars on` faz, em ordem: `hyprpm update` (headers da versão
+instalada, pede sudo), `hyprpm add` do repo oficial (compila), `hyprpm enable
+hyprbars` e `hyprpm reload -n`. Pré-requisitos (`cmake`, `meson`, `cpio`,
+`base-devel`) já estão no `packages/base.packages`.
 
-E no autostart do `hyprland.lua`, antes da waybar:
+No login, o autostart roda `hyprpm reload -n`: carrega o que estiver
+habilitado e, se o plugin não subir, avisa na tela em vez de sumir calado.
+
+### De onde veio a config
+
+Do código-fonte, não de documentação de terceiro — a lição do `hl.print`.
+`hyprbars/main.cpp` do `hyprland-plugins`, conferido em setembro de 2026:
+
+- `hl.plugin.hyprbars.add_button` existe e recebe `{ bg_color, fg_color,
+  size, icon, action }`. **`fg_color` é obrigatório** (o rascunho antigo não
+  tinha, e todo botão teria dado erro). Cores são string `rgb(...)`.
+- O `hyprpm.toml` tem pin para o Hyprland 0.56.2 (`efb5099`), a versão do Arch
+  e do CI hoje.
+- Botões com `bar_buttons_alignment = "left"`: o primeiro adicionado fica na
+  ponta. Clicar na barra foca a janela antes de rodar a ação, então as ações
+  agem sobre a janela certa.
+- Regras de janela do plugin (`hyprbars:no_bar`) só existem com ele carregado.
+  Fora do `if`, o Hyprland acusa "unknown field".
+
+### A pegadinha do `hyprctl dispatch`
+
+Com config em Lua, `hyprctl dispatch X` vira `hl.dispatch(X)` (está em
+`src/debug/HyprCtl.cpp`). A sintaxe antiga — `hyprctl dispatch killactive` —
+**falha calada**. Por isso as ações dos botões são:
 
 ```lua
-"hyprpm reload -n",
+"hyprctl dispatch 'hl.dsp.window.close()'"
+"hyprctl dispatch 'hl.dsp.window.move({ workspace = \"special:minimizado\", follow = false })'"
+"hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = \"maximized\", action = \"toggle\" })'"
 ```
 
-Precisa de `cmake`, `meson`, `cpio` e `base-devel` — todos já estão no
-`packages/base.packages`. Depois de cada atualização do Hyprland o plugin
-precisa ser recompilado; o `brummy update` já roda `hyprpm update` quando
-encontra plugins instalados.
+Isso já tinha quebrado uma coisa sem ninguém ver: o scroll nos workspaces da
+Waybar usava `hyprctl dispatch workspace e+1`. Corrigido, e o `tools/check.sh`
+agora reprova qualquer `hyprctl dispatch` no formato antigo em `config/` e
+`bin/`.
 
-### Configuração (rascunho, a validar)
+### Como é testado
 
-```lua
--- Plugin: se não estiver carregado, hl.plugin nem existe. pcall para uma
--- ausência nunca derrubar a sessão — mesma lição do hl.print.
-pcall(function()
-  hl.config({ plugin = { hyprbars = {
-    bar_height            = 26,
-    bar_color             = "rgba(1a1a24ee)",
-    bar_blur              = true,
-    bar_part_of_window    = true,
-    bar_buttons_alignment = "left",     -- macOS: bolinhas à esquerda
-    bar_title_enabled     = true,
-    bar_text_align        = "center",
-    bar_text_font         = "Inter",
-    bar_text_size         = 11,
-    bar_padding           = 10,
-    bar_button_padding    = 8,
-    on_double_click       = "hyprctl dispatch fullscreen 1",  -- maximizar no duplo clique
-  }}})
+O `--verify-config` **não carrega plugins** (`hl.plugin.load` só registra o
+caminho, o carregamento vem depois), então ele pula o bloco do hyprbars. Para
+cobrir isso, o `tools/check.sh` roda o `hyprland.lua` duas vezes com um `hl`
+de mentira:
 
-  -- Ordem macOS: fechar, minimizar, maximizar.
-  local btn = hl.plugin.hyprbars.add_button
-  btn({ bg_color = 0xffff5f57, size = 11, icon = "", action = "hyprctl dispatch killactive" })
-  btn({ bg_color = 0xfffebc2e, size = 11, icon = "",
-        action = "hyprctl dispatch movetoworkspacesilent special:minimizado" })
-  btn({ bg_color = 0xff28c840, size = 11, icon = "", action = "hyprctl dispatch fullscreen 1" })
-end)
-```
+- **com o plugin:** cada `add_button` precisa ter os campos e tipos que o
+  `main.cpp` exige, as ações precisam ser `hyprctl dispatch 'hl.dsp...'`, e
+  toda opção em `plugin.hyprbars` precisa existir no plugin;
+- **sem o plugin:** nada do hyprbars pode vazar para fora do `if`.
 
-> ⚠️ A API Lua (`hl.plugin.hyprbars.add_button`) veio de documentação de
-> terceiro, não do repo oficial. É a mesma classe de fonte que produziu o
-> `hl.print` inexistente. **Validar com `hyprland --verify-config` na VM antes
-> de confiar** — e o `pcall` existe justamente para o caso de estar errada.
+## Minimizar
 
-## Minimizar: o que é possível de verdade
+O Hyprland **não tem** minimizar. O botão amarelo e o `SUPER+M` mandam a
+janela para a gaveta `special:minimizado`, sem seguir. A volta é o
+`bin/brummy-minimizados`:
 
-O Hyprland **não tem** minimizar. Não existe o conceito de janela minimizada no
-compositor. O que dá para fazer é mandar a janela para um workspace especial
-(uma gaveta) e ter como trazer de volta:
+| | |
+|---|---|
+| `status` | JSON para a Waybar: `󰖰 N` com os títulos no tooltip, some quando vazio |
+| `restaurar` | traz de volta para o workspace atual; com mais de uma, escolhe no wofi |
+| `lista` | o que está na gaveta |
 
-```
-minimizar  → hyprctl dispatch movetoworkspacesilent special:minimizado
-recuperar  → clicar na janela na taskbar da Waybar
-```
-
-Para a volta ser descobrível, a Waybar ganha uma taskbar tradicional:
-
-```json
-"wlr/taskbar": {
-  "format": "{icon}",
-  "icon-size": 18,
-  "tooltip-format": "{title}",
-  "on-click": "activate",
-  "on-click-middle": "close",
-  "ignore-list": ["wofi", "nwg-dock-hyprland"]
-}
-```
-
-Entra em `modules-left`, no lugar de `hyprland/window` (o título da janela
-ativa perde a graça quando existe a lista inteira).
-
-**A validar:** se clicar numa janela que está na gaveta realmente a traz de
-volta para o workspace atual, ou se apenas abre a gaveta. O `activate` do
-protocolo foreign-toplevel depende de como o Hyprland o implementa.
+Ficou de fora a `wlr/taskbar` do plano original: não havia garantia de que o
+`activate` dela tira a janela de um workspace especial. O módulo próprio move
+a janela por endereço, que é determinístico.
 
 ## O custo honesto
 
-- **Plugin é compilado contra a versão exata do Hyprland.** Toda atualização
-  pede `hyprpm update`. Se a compilação falhar, o plugin não carrega naquele
-  boot — a sessão sobe, só sem as barras.
-- **Arch é rolling.** Isso vai acontecer. É o preço de ter barra de título num
-  compositor que não tem decoração server-side.
-- **Ocupa altura.** 26px por janela some rápido em tela pequena; em 1366x768
-  (o T430) vale reavaliar a altura ou desligar por perfil.
+- **Plugin é compilado contra a versão exata do Hyprland.** O `brummy update`
+  roda `hyprpm update` depois do pacman; se ainda assim a barra sumir, `brummy
+  bars on` refaz. A sessão sempre sobe, só sem as barras.
+- **Arch é rolling.** Vai acontecer. É o preço de ter barra de título num
+  compositor sem decoração server-side.
+- **Ocupa altura.** 26px por janela; em 1366x768 (o T430) vale reavaliar.
 
-## Ordem de implementação
+## A validar na VM
 
-1. `./install.sh` completo validado na VM, visual base aparecendo
-2. `cmake`/`meson`/`cpio` conferidos em `packages/base.packages`
-3. hyprbars via `hyprpm`, config acima, `hyprland --verify-config`
-4. Se a API Lua estiver errada, cair para o formato hyprlang do plugin
-   (`hyprbars-button = cor, tamanho, ícone, ação`) num arquivo separado
-5. taskbar na Waybar e testar o ciclo minimizar → recuperar
-6. Só então entrar no `install.sh` como padrão
+1. `brummy bars on` compila e as bolinhas aparecem à esquerda
+2. Os três botões: fechar, minimizar (some e aparece `󰖰 1` na Waybar), maximizar
+3. Duplo clique na barra maximiza e volta
+4. Clique no `󰖰` restaura; com duas minimizadas, o wofi pergunta qual
+5. Scroll em cima dos workspaces da Waybar troca de workspace
+6. wofi e wlogout sem barra
