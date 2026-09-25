@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # brummy - helper descobrível (a parte "tradicional" do híbrido)
-# Uso: brummy help | update | theme | apps
+# Uso: brummy help | update | theme | apps | doctor | snapshot | uninstall ...
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 
@@ -18,6 +18,8 @@ Brummy Linux — comandos:
   brummy wallpaper [list|set <nome>|next]  troca o papel de parede padrão
   brummy hide [--list|--undo]  esconde/traz de volta apps no launcher
   brummy fix      conserta links de config quebrados (não entra na sessão?)
+  brummy snapshot [list|create <descrição>|rollback]  pontos de restauração (btrfs)
+  brummy uninstall  desfaz os links e devolve os backups das suas configs
 
 Atalhos Hyprland (híbrido):
   SUPER+D ou clique no   launcher com ícones (wofi drun)
@@ -35,10 +37,92 @@ Atalhos Hyprland (híbrido):
 EOF
     ;;
   update)
+    # Rede de segurança primeiro: com snap-pac o próprio pacman tira o
+    # snapshot; só com snapper, tiramos um na mão; sem nada, pelo menos avisa.
+    if pacman -Qq snap-pac &>/dev/null; then
+      echo "==> snapshot: o snap-pac tira um antes e outro depois do pacman"
+    elif command -v snapper &>/dev/null && [[ -f /etc/snapper/configs/root ]]; then
+      echo "==> snapshot antes de atualizar"
+      sudo snapper -c root create -d "brummy update" -c number || echo "  AVISO: snapshot falhou, seguindo mesmo assim"
+    else
+      echo "==> AVISO: sem snapshots (/ não é btrfs ou snapper não configurado)."
+      echo "    Se a atualização quebrar a sessão gráfica, não há volta automática."
+    fi
     echo "==> pacman -Syu"
     sudo pacman -Syu
+    # Plugins do hyprpm (hyprbars) são compilados contra a versão exata do
+    # Hyprland: depois de atualizá-lo, sem recompilar, eles não carregam.
+    if command -v hyprpm &>/dev/null && [[ -d "/var/cache/hyprpm/$USER" ]]; then
+      echo "==> recompilando plugins do Hyprland (hyprpm update)"
+      hyprpm update || echo "  AVISO: hyprpm update falhou — plugins podem não carregar no próximo login"
+    fi
     echo "==> relinkando configs"
     "$REPO_DIR/install.sh"
+    ;;
+  snapshot|snapshots)
+    shift || true
+    sub="${1:-list}"
+    if ! command -v snapper &>/dev/null || [[ ! -f /etc/snapper/configs/root ]]; then
+      echo "snapper não está configurado para /."
+      echo "Precisa de / em btrfs; aí o ./install.sh configura tudo sozinho."
+      echo "Mais em: $REPO_DIR/docs/snapshots.md"
+      exit 1
+    fi
+    case "$sub" in
+      list)   sudo snapper -c root list ;;
+      create) shift || true
+              sudo snapper -c root create -d "${*:-manual (brummy)}" -c number
+              echo "ok — veja com: brummy snapshot list" ;;
+      rollback)
+        cat <<EOF
+Voltar a um snapshot (o sistema atual fica guardado, nada é apagado):
+
+  1. Reinicie e, no GRUB, entre em "Arch Linux snapshots" (grub-btrfs).
+     Escolha um snapshot de antes do problema. Ele sobe só-leitura.
+  2. Confira que ali está tudo funcionando.
+  3. Siga o passo a passo de restauração em:
+     $REPO_DIR/docs/snapshots.md
+
+Snapshots disponíveis:
+EOF
+        sudo snapper -c root list ;;
+      *) echo "uso: brummy snapshot [list|create <descrição>|rollback]"; exit 1 ;;
+    esac
+    ;;
+  uninstall)
+    # Desfaz só a camada de usuário: tira os links que apontam para este repo
+    # e devolve o backup mais recente que o install.sh fez de cada config.
+    # Pacotes, greetd, boot e snapshots ficam — remover isso é decisão sua.
+    shift || true
+    if [[ "${1:-}" != "--yes" ]]; then
+      echo "Isto remove os links de ~/.config que apontam para $REPO_DIR"
+      echo "e restaura os backups *.bak-brummy-* mais recentes."
+      read -r -p "Continuar? [s/N] " resp
+      [[ "$resp" == [sS]* ]] || { echo "nada feito"; exit 0; }
+    fi
+    for d in hypr waybar kitty wofi fish nwg-dock-hyprland fastfetch; do
+      alvo="$HOME/.config/$d"
+      if [[ -L "$alvo" && "$(readlink "$alvo")" == "$REPO_DIR/config/"* ]]; then
+        rm -f "$alvo"; echo "  link removido: $d"
+      fi
+      bak=""
+      for b in "$alvo".bak-brummy-*; do [[ -e "$b" ]] && bak="$b"; done
+      if [[ -n "$bak" && ! -e "$alvo" ]]; then
+        mv "$bak" "$alvo"; echo "  restaurado: $d  (de $(basename "$bak"))"
+      fi
+    done
+    for g in gtk-3.0 gtk-4.0; do
+      bak=""
+      for b in "$HOME/.config/$g/settings.ini".bak-brummy-*; do [[ -e "$b" ]] && bak="$b"; done
+      [[ -n "$bak" ]] && mv -f "$bak" "$HOME/.config/$g/settings.ini" && echo "  restaurado: $g/settings.ini"
+    done
+    for h in brummy brummy-remove-preinstalls brummy-wallpaper-apply brummy-hide-apps; do
+      l="$HOME/.local/bin/$h"
+      [[ -L "$l" && "$(readlink "$l")" == "$REPO_DIR/bin/"* ]] && rm -f "$l" && echo "  removido: ~/.local/bin/$h"
+    done
+    echo ""
+    echo "Pronto. Pacotes e serviços continuam instalados; o login gráfico (greetd)"
+    echo "segue ativo — desative com: sudo systemctl disable greetd"
     ;;
   theme)
     echo "Tema atual: WhiteSur-Dark + accent azul"
@@ -69,13 +153,23 @@ Apps Brummy (bundle estilo Omarchy — edite packages/*.packages):
 EOF
     ;;
   wallpaper)
+    # Nomes dos papéis de parede (sem o link current.jpg), um por linha.
+    # Glob em vez de ls: nome com espaço não vira dois arquivos.
+    wallpapers() {
+      local f
+      for f in "$1"/*; do
+        [[ -f "$f" && "$(basename "$f")" != current.jpg ]] && basename "$f"
+      done
+      return 0
+    }
     WDIR="$HOME/Pictures/Brummy"
     shift || true
     sub="${1:-list}"
     case "$sub" in
       list|--help|-h|"")
         echo "Padrões em $WDIR (atual: $(readlink "$WDIR/current.jpg" 2>/dev/null | xargs basename 2>/dev/null || echo nenhum)):"
-        ls -1 "$WDIR" 2>/dev/null | grep -v '^current\.jpg$' || echo "(vazio — adicione jpgs em themes/wallpapers/ e rode ./install.sh)"
+        mapfile -t files < <(wallpapers "$WDIR")
+        (( ${#files[@]} )) && printf '%s\n' "${files[@]}" || echo "(vazio — adicione jpgs em themes/wallpapers/ e rode ./install.sh)"
         echo "Uso: brummy wallpaper set <arquivo> | brummy wallpaper next"
         ;;
       set)
@@ -97,7 +191,7 @@ EOF
         ;;
       next)
         cur="$(readlink "$WDIR/current.jpg" 2>/dev/null | xargs basename 2>/dev/null)"
-        files=($(ls -1 "$WDIR" | grep -v '^current\.jpg$'))
+        mapfile -t files < <(wallpapers "$WDIR")
         [[ ${#files[@]} -eq 0 ]] && { echo "nenhum wallpaper em $WDIR"; exit 1; }
         idx=0
         for k in "${!files[@]}"; do [[ "${files[$k]}" == "$cur" ]] && idx=$(( (k+1) % ${#files[@]} )); done
@@ -198,6 +292,29 @@ EOF
     echo "--- wallpaper ---"
     wp=$(readlink -f "$HOME/Pictures/Brummy/current.jpg" 2>/dev/null || true)
     [[ -f "$wp" ]] && echo "ok $(basename "$wp")" || echo "FALTA wallpaper (rode ./install.sh)"
+    echo "--- AUR (packages/aur.packages) ---"
+    # Lê a própria lista: o install.sh deixa o AUR falhar sem parar tudo,
+    # então é aqui que a falha silenciosa aparece.
+    faltam_aur=0
+    while read -r pkg; do
+      [[ "$pkg" =~ ^#.*$ || -z "$pkg" ]] && continue
+      if pacman -Qq "$pkg" &>/dev/null; then echo "ok   $pkg"
+      else echo "FALTA $pkg"; faltam_aur=$((faltam_aur+1)); fi
+    done < "$REPO_DIR/packages/aur.packages"
+    (( faltam_aur > 0 )) && echo "     ($faltam_aur do AUR faltando: tente 'paru -S <pacote>' e veja o erro)"
+    echo "--- snapshots ---"
+    fs=$(findmnt -no FSTYPE / 2>/dev/null || echo "?")
+    if [[ "$fs" != "btrfs" ]]; then
+      echo "AVISO: / é $fs — sem snapshots automáticos antes de atualizar"
+    elif [[ -f /etc/snapper/configs/root ]]; then
+      echo "ok snapper configurado para /"
+      pacman -Qq snap-pac &>/dev/null && echo "ok snap-pac (snapshot a cada pacman)" || echo "FALTA snap-pac"
+      systemctl is-enabled grub-btrfsd.service &>/dev/null && echo "ok grub-btrfsd (snapshots no menu do GRUB)" || echo "FALTA grub-btrfsd habilitado"
+      grep -E '^[^#]\S+\s+/\s+btrfs' /etc/fstab 2>/dev/null | grep -q 'subvolid=' \
+        && echo "AVISO: /etc/fstab monta / por subvolid — restaurar snapshot exige tirar isso (docs/snapshots.md)"
+    else
+      echo "AVISO: / é btrfs mas o snapper não está configurado (rode ./install.sh)"
+    fi
     echo "--- base ---"
     for b in hyprland Hyprland waybar wofi kitty fish greetd tuigreet thunar nautilus helium-browser firefox codium nvim docker obsidian discord qbittorrent gparted etcher gnome-boxes easyeffects claude-desktop opencode steam lutris bottles protonup-qt mangohud gamemoderun vulkaninfo glxinfo virsh virt-manager qemu-system-x86_64 btop radeontop missioncenter claudebar; do
       command -v "$b" &>/dev/null && echo "ok $b" || echo "FALTA $b"

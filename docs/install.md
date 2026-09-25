@@ -10,7 +10,8 @@ A ISO oficial do Arch já vem com instalador guiado por menu — sem particionar
 
 1. Baixe a ISO em archlinux.org, crie a VM no Boxes (ou pen drive no PC real)
 2. No boot da ISO, digite: `archinstall`
-3. Menu guiado: idioma pt_BR, disco (apague tudo / particionamento automático), perfil
+3. Menu guiado: idioma pt_BR, disco (apague tudo / particionamento automático,
+   **sistema de arquivos btrfs** — é o que liga os snapshots, veja `docs/snapshots.md`), perfil
    `minimal` ou `desktop → Hyprland` (tanto faz — o Brummy refaz por cima),
    usuário + sudo, rede NetworkManager. Confirma e espera.
 4. Reinicie no sistema instalado, passe a pasta `brummy-linux` pra dentro

@@ -7,7 +7,7 @@
 #
 # Uso: ./tools/check.sh
 set -uo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
 falhas=0
 ok()   { printf '  \033[32mok\033[0m    %s\n' "$*"; }
@@ -18,6 +18,16 @@ head_ "sintaxe dos scripts shell"
 while IFS= read -r f; do
   bash -n "$f" 2>/dev/null && ok "$f" || bad "$f"
 done < <(find bin tools iso install.sh -type f \( -name '*.sh' -o ! -name '*.*' \) 2>/dev/null | sort)
+
+head_ "shellcheck (avisos e erros)"
+# Pega o que bash -n não pega: variável sem aspas, cd sem checagem, ls | grep...
+if command -v shellcheck &>/dev/null; then
+  while IFS= read -r f; do
+    out="$(LC_ALL=C.UTF-8 shellcheck -S warning -f gcc "$f" 2>&1)" && ok "$f" || { bad "$f"; echo "$out" | sed 's/^/        /'; }
+  done < <({ find bin tools iso install.sh -type f \( -name '*.sh' -o ! -name '*.*' \); find config -name '*.sh'; } 2>/dev/null | sort)
+else
+  echo "  (pulado: instale shellcheck — sudo apt install shellcheck)"
+fi
 
 head_ "JSON / JSONC"
 python3 - <<'PY' && ok "config/waybar/config" || bad "config/waybar/config"

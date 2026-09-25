@@ -63,6 +63,7 @@ pick_audio() {
 # Teclado: com display gtk o QEMU manda scancode cru, então o layout do
 # convidado (br-abnt2) é respeitado — é isto que conserta o teclado do Boxes.
 build_args() {
+  # shellcheck disable=SC2054  # as vírgulas são sintaxe do QEMU, não separador
   qemu_args=(
     -enable-kvm
     -cpu host
@@ -88,6 +89,7 @@ build_args() {
   fi
   local aud; aud="$(pick_audio)"
   if [[ -n "$aud" ]]; then
+    # shellcheck disable=SC2054
     qemu_args+=(-audiodev "$aud,id=snd0" -device intel-hda -device hda-output,audiodev=snd0)
   else
     echo "  (aviso: nenhum backend de áudio disponível neste QEMU — seguindo sem som)" >&2

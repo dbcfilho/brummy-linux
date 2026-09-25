@@ -1,0 +1,60 @@
+# CI do Brummy: o mesmo tools/check.sh que roda na sua máquina, mais o
+# hyprland --verify-config num container Arch — a checagem que antes só
+# acontecia dentro da VM.
+name: check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: check.sh (shellcheck, JSON, Lua, subcomandos)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: dependências
+        run: sudo apt-get update && sudo apt-get install -y shellcheck lua5.4
+      - name: tools/check.sh
+        run: ./tools/check.sh
+
+  verify-config:
+    name: hyprland --verify-config (${{ matrix.profile }})
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { profile: desktop,  mon: monitors-desktop.lua,  gpu: gpu-amd.lua }
+          - { profile: thinkpad, mon: monitors-thinkpad.lua, gpu: gpu-intel.lua }
+          - { profile: general,  mon: monitors-general.lua,  gpu: gpu-intel.lua }
+    steps:
+      - uses: actions/checkout@v5
+      - name: instala o Hyprland
+        run: pacman -Syu --noconfirm --needed hyprland
+      # O container roda como root e o Hyprland se recusa a subir como root,
+      # até no --verify-config. Um usuário comum, como numa instalação real.
+      - name: usuário comum com ~/.config/hypr como o install.sh monta
+        run: |
+          useradd -m brummy
+          H=/home/brummy
+          mkdir -p "$H/.config"
+          cp -r config/hypr "$H/.config/hypr"
+          ln -sf "$H/.config/hypr/modules/${{ matrix.mon }}" "$H/.config/hypr/modules/profile-monitors.lua"
+          ln -sf "$H/.config/hypr/modules/${{ matrix.gpu }}" "$H/.config/hypr/modules/profile-gpu.lua"
+          mkdir -p /run/user/brummy
+          chmod 700 /run/user/brummy
+          chown -R brummy:brummy "$H" /run/user/brummy
+      - name: verify-config
+        shell: bash
+        run: |
+          set -o pipefail
+          # Até o --version aborta sem XDG_RUNTIME_DIR (mesma nota do doctor):
+          # tudo que chama o Hyprland passa por aqui.
+          hypr() { runuser -u brummy -- env HOME=/home/brummy XDG_RUNTIME_DIR=/run/user/brummy Hyprland "$@"; }
+          hypr --version | head -1
+          hypr --verify-config 2>&1 | tee verify.log
+          # na VM, config válida termina com "config ok"
+          grep -qi 'config ok' verify.log
