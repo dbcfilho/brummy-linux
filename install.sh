@@ -365,7 +365,7 @@ echo "   se você mover ou apagar esta pasta, rode 'brummy fix' antes de desloga
 
 echo "==> [brummy] instalando comando brummy..."
 ln -sf "$BIN_SRC" "$TARGET_BIN"
-for helper in brummy-remove-preinstalls brummy-wallpaper-apply brummy-hide-apps; do
+for helper in brummy-remove-preinstalls brummy-wallpaper-apply brummy-hide-apps brummy-minimizados; do
   ln -sf "$REPO_DIR/bin/$helper" "$HOME/.local/bin/$helper"
   chmod +x "$REPO_DIR/bin/$helper"
 done
@@ -489,4 +489,5 @@ echo "==> Pronto! Brummy Linux instalado."
 echo "  - Logout e entre na sessão Hyprland"
 echo "  - SUPER+ESPAÇO: launcher | SUPER+Q: terminal | SUPER+E: arquivos | SUPER+L: bloquear"
 echo "  - Rode: brummy help   (algo estranho? brummy doctor)"
+echo "  - Barras de título clicáveis (opcional): brummy bars on  — dentro da sessão"
 echo "  - Log desta instalação: $LOG_FILE"

@@ -20,6 +20,7 @@ Brummy Linux — comandos:
   brummy fix      conserta links de config quebrados (não entra na sessão?)
   brummy snapshot [list|create <descrição>|rollback]  pontos de restauração (btrfs)
   brummy uninstall  desfaz os links e devolve os backups das suas configs
+  brummy bars [on|off|status]  barras de título clicáveis (hyprbars)
 
 Atalhos Hyprland (híbrido):
   SUPER+D ou clique no   launcher com ícones (wofi drun)
@@ -28,6 +29,7 @@ Atalhos Hyprland (híbrido):
   SUPER+L  lock screen
   SUPER+1..9 workspaces | SUPER+SHIFT+1..9 mover janela
   SUPER+F fullscreen | SUPER+V flutuar | SUPER+SHIFT+S captura de tela
+  SUPER+M minimizar | SUPER+SHIFT+M (ou clique no 󰖰 da barra) restaurar
   Mouse:
     SUPER+arrastar-esq / ALT+arrastar-esq = mover janela
     SUPER+arrastar-dir / ALT+arrastar-dir = redimensionar (ou puxe a borda)
@@ -54,7 +56,9 @@ EOF
     # Hyprland: depois de atualizá-lo, sem recompilar, eles não carregam.
     if command -v hyprpm &>/dev/null && [[ -d "/var/cache/hyprpm/$USER" ]]; then
       echo "==> recompilando plugins do Hyprland (hyprpm update)"
-      hyprpm update || echo "  AVISO: hyprpm update falhou — plugins podem não carregar no próximo login"
+      # O update compila contra o Hyprland instalado; sem sessão gráfica ele
+      # só não consegue recarregar na hora, e o próximo login carrega.
+      hyprpm update || echo "  AVISO: hyprpm update reclamou — se as barras sumirem no próximo login, rode: brummy bars on"
     fi
     echo "==> relinkando configs"
     "$REPO_DIR/install.sh"
@@ -89,6 +93,44 @@ EOF
       *) echo "uso: brummy snapshot [list|create <descrição>|rollback]"; exit 1 ;;
     esac
     ;;
+  bars)
+    # hyprbars via hyprpm. O `hyprpm add` precisa do Hyprland rodando (ele
+    # pergunta a versão pelo socket), por isso isto é um comando para rodar
+    # de dentro da sessão, e não um passo do install.sh.
+    shift || true
+    sub="${1:-status}"
+    command -v hyprpm &>/dev/null || { echo "hyprpm não encontrado (vem com o pacote hyprland)"; exit 1; }
+    case "$sub" in
+      on)
+        if [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+          echo "Rode dentro da sessão Hyprland (num terminal, SUPER+Q) — o hyprpm precisa dela."
+          exit 1
+        fi
+        for dep in cmake meson cpio pkgconf g++; do
+          command -v "$dep" &>/dev/null || { echo "falta $dep — rode ./install.sh (está no base.packages)"; exit 1; }
+        done
+        echo "==> baixando os headers do Hyprland $(hyprctl version -j 2>/dev/null | jq -r .tag 2>/dev/null || echo '') (pede sudo)"
+        hyprpm update
+        if ! hyprpm list 2>/dev/null | grep -q 'hyprland-plugins'; then
+          echo "==> adicionando o repositório oficial hyprland-plugins (compila, leva uns minutos)"
+          hyprpm add https://github.com/hyprwm/hyprland-plugins
+        fi
+        hyprpm enable hyprbars
+        hyprpm reload -n
+        echo ""
+        echo "Pronto: bolinhas à esquerda de cada janela (fechar, minimizar, maximizar)."
+        echo "Duplo clique na barra maximiza. Desligar: brummy bars off"
+        ;;
+      off)
+        hyprpm disable hyprbars && hyprpm reload -n
+        echo "barras desligadas (o plugin continua compilado; 'brummy bars on' volta)"
+        ;;
+      status)
+        hyprpm list 2>/dev/null || echo "(nenhum plugin do hyprpm ainda — ligue com: brummy bars on)"
+        ;;
+      *) echo "uso: brummy bars [on|off|status]"; exit 1 ;;
+    esac
+    ;;
   uninstall)
     # Desfaz só a camada de usuário: tira os links que apontam para este repo
     # e devolve o backup mais recente que o install.sh fez de cada config.
@@ -116,7 +158,7 @@ EOF
       for b in "$HOME/.config/$g/settings.ini".bak-brummy-*; do [[ -e "$b" ]] && bak="$b"; done
       [[ -n "$bak" ]] && mv -f "$bak" "$HOME/.config/$g/settings.ini" && echo "  restaurado: $g/settings.ini"
     done
-    for h in brummy brummy-remove-preinstalls brummy-wallpaper-apply brummy-hide-apps; do
+    for h in brummy brummy-remove-preinstalls brummy-wallpaper-apply brummy-hide-apps brummy-minimizados; do
       l="$HOME/.local/bin/$h"
       [[ -L "$l" && "$(readlink "$l")" == "$REPO_DIR/bin/"* ]] && rm -f "$l" && echo "  removido: ~/.local/bin/$h"
     done
@@ -314,6 +356,18 @@ EOF
         && echo "AVISO: /etc/fstab monta / por subvolid — restaurar snapshot exige tirar isso (docs/snapshots.md)"
     else
       echo "AVISO: / é btrfs mas o snapper não está configurado (rode ./install.sh)"
+    fi
+    echo "--- janelas clicáveis (hyprbars) ---"
+    if ! command -v hyprpm &>/dev/null; then
+      echo "FALTA hyprpm"
+    else
+      # "│ Plugin hyprbars" seguido de "└─ enabled: true" (com cores ANSI)
+      hb="$(hyprpm list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -A1 'Plugin hyprbars' | tail -1)"
+      case "$hb" in
+        *"enabled: true"*) echo "ok hyprbars habilitado" ;;
+        *"failed to build"*) echo "FALHOU hyprbars não compilou — rode: hyprpm update -v (dentro da sessão)" ;;
+        *) echo "     desligado (opcional) — ligue com: brummy bars on" ;;
+      esac
     fi
     echo "--- base ---"
     for b in hyprland Hyprland waybar wofi kitty fish greetd tuigreet thunar nautilus helium-browser firefox codium nvim docker obsidian discord qbittorrent gparted etcher gnome-boxes easyeffects claude-desktop opencode steam lutris bottles protonup-qt mangohud gamemoderun vulkaninfo glxinfo virsh virt-manager qemu-system-x86_64 btop radeontop missioncenter claudebar; do

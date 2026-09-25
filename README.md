@@ -39,10 +39,12 @@ SUPER+E       arquivos        SUPER+B           navegador
 SUPER+C       fechar          SUPER+F           tela cheia
 SUPER+V       flutuar         SUPER+SHIFT+S     captura de tela
 SUPER+1..9    workspaces      SUPER+arrastar    mover/redimensionar
+SUPER+M       minimizar       SUPER+SHIFT+M     restaurar
 ```
 
 Sem tecla nenhuma: puxe a borda da janela para redimensionar, arraste com `ALT`
-para mover, clique nos workspaces da barra, use o botão ⏻ para desligar.
+para mover, clique nos workspaces da barra, use o botão ⏻ para desligar. Com
+`brummy bars on`, cada janela ganha bolinhas de fechar, minimizar e maximizar.
 
 ---
 
@@ -108,6 +110,7 @@ brummy fix         conserta links de config quebrados
 brummy update      snapshot, atualiza o sistema, recompila plugins e repuxa os links
 brummy snapshot    list | create <descrição> | rollback
 brummy uninstall   tira os links e devolve os backups das suas configs
+brummy bars        on | off | status — barras de título clicáveis (hyprbars)
 ```
 
 O `brummy doctor` é o primeiro lugar para olhar quando algo parecer errado. Ele
@@ -189,8 +192,9 @@ brummy-linux/
       `brummy uninstall`; log da instalação
 - [ ] **v1.2a** — `./install.sh` no hardware real: T430 (`thinkpad`) e
       RX 6600 XT (`desktop`)
-- [ ] **v1.3** — janelas clicáveis sobre o tiling (hyprbars + taskbar), plano em
-      `docs/janelas-clicaveis.md`
+- [ ] **v1.3** — janelas clicáveis sobre o tiling: hyprbars (`brummy bars on`),
+      minimizar/restaurar com `󰖰` na Waybar. Config pronta e testada no CI;
+      falta ver desenhando na VM — roteiro em `docs/janelas-clicaveis.md`
 - [ ] **v1.4** — primeira build da ISO live
 - [ ] futuro — LFS / kernel próprio, para aprender (em outro repo)
 
