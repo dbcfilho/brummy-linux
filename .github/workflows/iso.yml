@@ -10,6 +10,10 @@ on:
         description: "incluir o bundle dev (Java/Node/Postgres/k8s) — ISO bem maior"
         type: boolean
         default: false
+      publica:
+        description: "ISO para publicar: sem pacotes que não podem ser redistribuídos"
+        type: boolean
+        default: false
       sem_cache:
         description: "reconstruir todos os pacotes do AUR"
         type: boolean
@@ -44,6 +48,7 @@ jobs:
       - name: build
         env:
           BRUMMY_ISO_SEM_DEV: ${{ inputs.com_dev && '0' || '1' }}
+          BRUMMY_ISO_PUBLICA: ${{ inputs.publica && '1' || '0' }}
         run: ./iso/build.sh ${{ inputs.sem_cache && '--no-cache' || '' }}
 
       - name: salva o cache do AUR (mesmo se a build falhou)
@@ -58,11 +63,15 @@ jobs:
         run: |
           echo "AUR que não construiu:"; cat iso/.cache/aur/FALHARAM.txt 2>/dev/null || echo "  nenhum"
           echo "sem repositório nenhum:"; cat iso/out/SUMIDOS.txt 2>/dev/null || echo "  nenhum"
+          echo "fora por licença:"; cat iso/.cache/aur/NAO_REDISTRIBUI.txt 2>/dev/null || echo "  nenhum"
+          echo; cat iso/out/LICENCAS.txt 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
         with:
           name: brummy-iso
-          path: iso/out/*.iso
+          path: |
+            iso/out/*.iso
+            iso/out/LICENCAS.txt
           retention-days: 3
           compression-level: 0
           if-no-files-found: error

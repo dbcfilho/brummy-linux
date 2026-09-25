@@ -85,12 +85,16 @@ PACMAN
 
 echo "==> [5/7] lista de pacotes"
 bash "$REPO_DIR/iso/builder/gen-packages.sh" "$REPO_DIR" "$PROFILE/packages.x86_64"
-# tira da lista o que o AUR não conseguiu construir
-if [[ -f "$AUR_DIR/FALHARAM.txt" ]]; then
+# tira da lista o que o AUR não conseguiu construir e, na ISO pública, o que
+# não pode ser redistribuído (o aur-repo.sh decide pela licença)
+for lista in "$AUR_DIR/FALHARAM.txt" "$AUR_DIR/NAO_REDISTRIBUI.txt"; do
+  [[ -f "$lista" ]] || continue
   while read -r p; do
     [[ -n "$p" ]] && sed -i "/^${p}$/d" "$PROFILE/packages.x86_64"
-  done < "$AUR_DIR/FALHARAM.txt"
-fi
+  done < "$lista"
+done
+mkdir -p "$OUT"
+cp -f "$AUR_DIR/LICENCAS.txt" "$OUT/" 2>/dev/null || true
 # Um nome que nenhum repositório tem derruba o mkarchiso inteiro no fim da
 # build (o pacstrap não pula nada). Confere antes, com o mesmo pacman.conf,
 # e tira com aviso: melhor uma ISO sem um pacote do que nenhuma ISO.

@@ -21,6 +21,7 @@ Brummy Linux — comandos:
   brummy snapshot [list|create <descrição>|rollback]  pontos de restauração (btrfs)
   brummy uninstall  desfaz os links e devolve os backups das suas configs
   brummy bars [on|off|status]  barras de título clicáveis (hyprbars)
+  brummy extras   instala os apps do AUR que faltam (os que a ISO pública não traz)
 
 Atalhos Hyprland (híbrido):
   SUPER+D ou clique no   launcher com ícones (wofi drun)
@@ -130,6 +131,29 @@ EOF
         ;;
       *) echo "uso: brummy bars [on|off|status]"; exit 1 ;;
     esac
+    ;;
+  extras)
+    # Os apps do AUR que não estão no sistema: os que falharam no install.sh e
+    # os que a ISO pública deixa de fora por licença (não podem ser
+    # redistribuídos, mas você pode instalar na sua máquina).
+    if command -v paru &>/dev/null; then aur=(paru -S --needed); elif command -v yay &>/dev/null; then aur=(yay -S --needed)
+    else echo "sem paru nem yay — rode ./install.sh uma vez (ele instala o paru)"; exit 1; fi
+    listas=("$REPO_DIR/packages/aur.packages")
+    [[ -d /sys/class/power_supply/BAT0 || -d /sys/class/power_supply/BAT1 ]] && listas+=("$REPO_DIR/packages/laptop-aur.packages")
+    command -v mvn &>/dev/null && listas+=("$REPO_DIR/packages/dev-aur.packages")
+    faltam=()
+    for l in "${listas[@]}"; do
+      [[ -f "$l" ]] || continue
+      while read -r pkg; do
+        [[ "$pkg" =~ ^#.*$ || -z "$pkg" ]] && continue
+        pacman -Qq "$pkg" &>/dev/null || faltam+=("$pkg")
+      done < "$l"
+    done
+    if ((${#faltam[@]} == 0)); then echo "nada faltando — todos os apps do AUR já estão aqui"; exit 0; fi
+    echo "faltam: ${faltam[*]}"
+    for pkg in "${faltam[@]}"; do
+      "${aur[@]}" "$pkg" || echo "  falhou: $pkg (veja o erro acima)"
+    done
     ;;
   uninstall)
     # Desfaz só a camada de usuário: tira os links que apontam para este repo
@@ -343,7 +367,7 @@ EOF
       if pacman -Qq "$pkg" &>/dev/null; then echo "ok   $pkg"
       else echo "FALTA $pkg"; faltam_aur=$((faltam_aur+1)); fi
     done < "$REPO_DIR/packages/aur.packages"
-    (( faltam_aur > 0 )) && echo "     ($faltam_aur do AUR faltando: tente 'paru -S <pacote>' e veja o erro)"
+    (( faltam_aur > 0 )) && echo "     ($faltam_aur do AUR faltando: instale com 'brummy extras')"
     echo "--- snapshots ---"
     fs=$(findmnt -no FSTYPE / 2>/dev/null || echo "?")
     if [[ "$fs" != "btrfs" ]]; then

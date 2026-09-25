@@ -1,0 +1,11 @@
+# Brummy ISO pública — pacotes que NUNCA entram na ISO pública, mesmo que a
+# licença declarada no PKGBUILD pareça livre. Use para o que você sabe que os
+# termos de uso não permitem redistribuir. Eles continuam no install.sh e o
+# sistema instalado pega depois com: brummy extras
+#
+# O filtro automático (licença custom, LicenseRef-*, unknown...) já pega a
+# maioria; esta lista é para o que ele não pega.
+claude-code
+claude-desktop
+postman-bin
+android-studio

@@ -9,6 +9,7 @@
 #   ./iso/build.sh --no-cache     # ignora o cache de pacotes AUR
 #   ./iso/build.sh --shell        # abre um shell no container p/ depurar
 #   BRUMMY_ISO_SEM_DEV=1 ./iso/build.sh   # sem o bundle dev (ISO menor)
+#   BRUMMY_ISO_PUBLICA=1 ./iso/build.sh   # para publicar: sem o que não pode ser redistribuído
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -42,6 +43,7 @@ DOCKER_ARGS=(
   -v "$CACHE_DIR/aur":/tmp/brummy-aur
   -w /brummy
   -e BRUMMY_ISO_SEM_DEV="${BRUMMY_ISO_SEM_DEV:-0}"
+  -e BRUMMY_ISO_PUBLICA="${BRUMMY_ISO_PUBLICA:-0}"
 )
 # -it só com terminal: no CI não há, e o docker recusa
 [[ -t 0 && -t 1 ]] && DOCKER_ARGS+=(-it)

@@ -175,6 +175,15 @@ grep -q "/run/archiso/bootmnt/$dir/x86_64/airootfs.sfs" iso/calamares/modules/un
   && ok "unpackfs aponta para o install_dir ($dir)" || bad "unpackfs.conf não aponta para install_dir=$dir do profiledef.sh"
 grep -q '@@PACOTES_LIVE@@' iso/calamares/modules/packages.conf \
   && ok "packages.conf com o marcador da lista gerada" || bad "packages.conf perdeu o @@PACOTES_LIVE@@ (o build-iso.sh troca ele)"
+# nome errado na lista de exclusão = pacote que vaza para a ISO pública
+aur_todos="$(cat packages/*aur.packages | grep -v '^\s*#' | grep -v '^\s*$')"
+orfaos=""
+while read -r p; do
+  [[ -z "$p" || "$p" == \#* ]] && continue
+  grep -qx "$p" <<<"$aur_todos" || orfaos+=" $p"
+done < packages/iso-publica.exclui
+[[ -z "$orfaos" ]] && ok "iso-publica.exclui só cita pacotes das listas do AUR" \
+  || bad "iso-publica.exclui cita o que nenhuma lista do AUR tem:$orfaos"
 python3 - <<'PY' && ok "Calamares: YAML válido e todo módulo da sequência tem config" || bad "Calamares: veja acima"
 import glob, sys
 try:

@@ -282,6 +282,7 @@ Teclas de mídia, volume e brilho funcionam, inclusive com a tela bloqueada.
 | `brummy hide [--list \| --undo]` | esconde do launcher os apps parasitas |
 | `brummy bars on \| off \| status` | barras de título clicáveis (rode dentro da sessão) |
 | `brummy snapshot list \| create <descrição> \| rollback` | pontos de restauração |
+| `brummy extras` | instala os apps do AUR que faltam (os que falharam, ou que a ISO pública não traz) |
 | `brummy uninstall` | tira os links e devolve os backups das suas configs |
 | `brummy theme` | onde mexer no tema |
 
@@ -339,9 +340,16 @@ iso/build.sh                  roda no seu PC (ou no GitHub Actions)
 sudo apt install docker.io && sudo usermod -aG docker $USER   # relogue depois
 ./iso/build.sh                       # 40-90 min na primeira vez
 BRUMMY_ISO_SEM_DEV=1 ./iso/build.sh  # sem o bundle dev (ISO menor)
+BRUMMY_ISO_PUBLICA=1 ./iso/build.sh  # para distribuir: sem o que não pode ser redistribuído
 ./iso/build.sh --no-cache            # reconstrói todos os pacotes do AUR
 ./iso/build.sh --shell               # shell no container, para depurar
 ```
+
+**ISO para distribuir.** Alguns apps do AUR são binários de terceiros que não
+podem ser redistribuídos. No modo público (opção `publica` no workflow), a build
+lê a licença de cada pacote e deixa de fora os restritos, além dos listados em
+`packages/iso-publica.exclui`; toda build publica um `LICENCAS.txt` com o que
+entrou e por quê. Quem instala pega o resto com `brummy extras`.
 
 **Construir no GitHub:** aba **Actions → iso → Run workflow**. Mesmo script, cache
 dos pacotes do AUR entre builds (salvo até quando a build falha), e ao fim o run

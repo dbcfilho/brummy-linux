@@ -159,6 +159,70 @@ for f in "${FAILED[@]}"; do
   fi
 done
 
+# --- licenças -------------------------------------------------------------
+# Toda build deixa um LICENCAS.txt: cada pacote pedido, de onde veio e a
+# licença que o próprio pacote declara (.PKGINFO). Com BRUMMY_ISO_PUBLICA=1,
+# o que não pode ser redistribuído sai da ISO (NAO_REDISTRIBUI.txt) — o
+# sistema instalado pega depois com `brummy extras`.
+arquivo_de() {
+  local f n
+  for f in "$AUR_DIR"/*.pkg.tar.zst; do
+    [[ -e "$f" ]] || continue
+    n="$(basename "$f")"; n="${n%-*-*-*}"
+    [[ "$n" == "$1" ]] && { echo "$f"; return 0; }
+  done
+  return 1
+}
+# licença restrita ou desconhecida? (sem licença declarada também conta)
+licenca_restrita() {
+  local l
+  (( $# == 0 )) && return 0
+  for l in "$@"; do
+    case "${l,,}" in
+      custom*|licenseref*|unknown|proprietary*|non-free*|nonfree*|unlicensed) return 0 ;;
+    esac
+  done
+  return 1
+}
+na_lista() { [[ -f "$2" ]] && grep -v '^\s*#' "$2" | grep -qx "$1"; }
+
+PUBLICA="${BRUMMY_ISO_PUBLICA:-0}"
+EXCLUI="$REPO_DIR/packages/iso-publica.exclui"
+PERMITE="$REPO_DIR/packages/iso-publica.permite"
+rm -f "$AUR_DIR/LICENCAS.txt" "$AUR_DIR/NAO_REDISTRIBUI.txt"
+FORA=()
+{
+  echo "# Pacotes do AUR pedidos pelo Brummy e suas licenças (build $(date +%F))"
+  echo "# modo: $([[ "$PUBLICA" == "1" ]] && echo "ISO PÚBLICA — restritos ficam de fora" || echo "ISO pessoal — tudo entra")"
+  echo "# Os pacotes dos repositórios oficiais são redistribuídos pelo próprio Arch."
+  printf '%-28s %-40s %s\n' "pacote" "licença" "situação"
+  for pkg in "${PKGS[@]}"; do
+    if printf '%s\n' "${FAILED[@]}" | grep -qx "$pkg"; then
+      printf '%-28s %-40s %s\n' "$pkg" "-" "não construiu"; continue
+    fi
+    if ! f="$(arquivo_de "$pkg")"; then
+      printf '%-28s %-40s %s\n' "$pkg" "-" "repositório oficial"; continue
+    fi
+    mapfile -t lic < <(bsdtar -xOf "$f" .PKGINFO 2>/dev/null | sed -n 's/^license = //p')
+    txt="$(IFS=,; echo "${lic[*]:-não declarada}")"
+    situacao="entra"
+    if [[ "$PUBLICA" == "1" && "$pkg" != "calamares" ]]; then
+      if na_lista "$pkg" "$EXCLUI"; then
+        situacao="FORA (iso-publica.exclui)"
+      elif licenca_restrita "${lic[@]}" && ! na_lista "$pkg" "$PERMITE"; then
+        situacao="FORA (licença restrita ou não declarada)"
+      fi
+      [[ "$situacao" == FORA* ]] && FORA+=("$pkg")
+    fi
+    printf '%-28s %-40s %s\n' "$pkg" "$txt" "$situacao"
+  done
+} > "$AUR_DIR/LICENCAS.txt"
+if ((${#FORA[@]})); then
+  printf '%s\n' "${FORA[@]}" > "$AUR_DIR/NAO_REDISTRIBUI.txt"
+  echo "[aur] ISO pública: fora por licença — ${FORA[*]}"
+fi
+cat "$AUR_DIR/LICENCAS.txt"
+
 repo-add "$AUR_DIR/brummy-aur.db.tar.gz" "$AUR_DIR"/*.pkg.tar.zst
 chmod -R a+rX "$AUR_DIR"
 

@@ -73,6 +73,33 @@ Primeira build: 40-90 minutos (a maior parte é compilar AUR). As seguintes usam
 o cache em `iso/.cache/` (pacman e AUR) e caem para uns 20.
 `BRUMMY_ISO_SEM_DEV=1 ./iso/build.sh` deixa o bundle dev de fora.
 
+### ISO pública (para distribuir)
+
+A ISO leva pacotes do AUR, e alguns são binários de terceiros cujos termos não
+permitem redistribuição. Para uso próprio, isso não importa; para publicar, sim.
+
+```bash
+BRUMMY_ISO_PUBLICA=1 ./iso/build.sh      # ou marque "publica" no workflow
+```
+
+Em toda build, o `aur-repo.sh` lê a licença que cada pacote declara (o
+`.PKGINFO` de dentro do `.pkg.tar.zst`) e grava o `LICENCAS.txt`, que sai junto
+da ISO. No modo público, fica de fora:
+
+- todo pacote com licença `custom`, `LicenseRef-*`, `unknown`, proprietária ou
+  não declarada — a não ser que esteja em `packages/iso-publica.permite`;
+- todo pacote de `packages/iso-publica.exclui`, mesmo com licença livre. Existe
+  porque o campo de licença do AUR costuma descrever o *script de
+  empacotamento*, não o programa: um binário proprietário pode aparecer como
+  MIT.
+
+O que fica de fora continua no `install.sh`. No sistema instalado, `brummy
+extras` instala tudo o que falta do AUR. Os pacotes dos repositórios oficiais
+entram sempre: é o próprio Arch que os redistribui.
+
+> Isso é uma rede de segurança, não parecer jurídico. Antes de publicar, leia o
+> `LICENCAS.txt` da build.
+
 ### Pelo GitHub, sem Docker local
 
 Aba **Actions → iso → Run workflow**. Roda o mesmo `./iso/build.sh` num runner,
