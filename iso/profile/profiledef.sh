@@ -29,4 +29,5 @@ file_permissions=(
   ["/root"]="0:0:750"
   ["/usr/local/bin/brummy-live-setup"]="0:0:755"
   ["/usr/local/bin/brummy-instalar"]="0:0:755"
+  ["/usr/local/bin/brummy-pos-instalacao"]="0:0:755"
 )

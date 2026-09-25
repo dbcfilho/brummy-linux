@@ -12,6 +12,7 @@ boot/assets/.assets-ok
 # build da ISO
 iso/out/
 iso/work/
+iso/.cache/
 *.iso
 
 # lixo de sistema

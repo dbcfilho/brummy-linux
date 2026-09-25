@@ -11,10 +11,10 @@ windowPlacement: center
 strings:
   productName:         Brummy Linux
   shortProductName:    Brummy
-  version:             v1.1
-  shortVersion:        v1.1
-  versionedName:       Brummy Linux v1.1
-  shortVersionedName:  Brummy v1.1
+  version:             v1.4
+  shortVersion:        v1.4
+  versionedName:       Brummy Linux v1.4
+  shortVersionedName:  Brummy v1.4
   bootloaderEntryName: Brummy
   productUrl:          https://github.com/dbcfilho/brummy-linux
   supportUrl:          https://github.com/dbcfilho/brummy-linux/issues

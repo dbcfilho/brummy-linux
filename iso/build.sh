@@ -8,6 +8,7 @@
 #   ./iso/build.sh                # build completo
 #   ./iso/build.sh --no-cache     # ignora o cache de pacotes AUR
 #   ./iso/build.sh --shell        # abre um shell no container p/ depurar
+#   BRUMMY_ISO_SEM_DEV=1 ./iso/build.sh   # sem o bundle dev (ISO menor)
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,17 +29,22 @@ done
 
 command -v docker &>/dev/null || { echo "ERRO: docker não encontrado. sudo apt install docker.io && sudo usermod -aG docker \$USER"; exit 1; }
 
-mkdir -p "$OUT_DIR" "$CACHE_DIR"
+mkdir -p "$OUT_DIR" "$CACHE_DIR/pacman" "$CACHE_DIR/aur"
 
 # --privileged: o mkarchiso monta loop devices e roda mkinitcpio em chroot.
+# Dois caches: pacotes do pacman e os .pkg.tar.zst do AUR (a parte lenta).
 DOCKER_ARGS=(
-  --rm -it
+  --rm
   --privileged
   -v "$REPO_DIR":/brummy
   -v "$OUT_DIR":/out
-  -v "$CACHE_DIR":/var/cache/pacman/pkg
+  -v "$CACHE_DIR/pacman":/var/cache/pacman/pkg
+  -v "$CACHE_DIR/aur":/tmp/brummy-aur
   -w /brummy
+  -e BRUMMY_ISO_SEM_DEV="${BRUMMY_ISO_SEM_DEV:-0}"
 )
+# -it só com terminal: no CI não há, e o docker recusa
+[[ -t 0 && -t 1 ]] && DOCKER_ARGS+=(-it)
 
 if [[ "$MODE" == "shell" ]]; then
   echo "==> shell no container Arch (o repo está em /brummy, saída em /out)"

@@ -1,0 +1,20 @@
+# Brummy ISO — o que o install.sh nunca precisou instalar, porque já vinha no
+# Arch base, mas a ISO precisa: ela monta o sistema do zero só com as listas
+# de packages/. Tudo aqui FICA no sistema instalado (o unpackfs copia o live).
+base
+linux
+linux-firmware
+mkinitcpio
+intel-ucode
+sudo
+# bootloader do sistema instalado (o módulo bootloader do Calamares)
+grub
+efibootmgr
+os-prober
+# sistemas de arquivos que o particionador do Calamares oferece
+dosfstools
+mtools
+e2fsprogs
+btrfs-progs
+xfsprogs
+ntfs-3g

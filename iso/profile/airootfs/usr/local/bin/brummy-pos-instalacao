@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# brummy-pos-instalacao — roda no CHROOT do sistema recém-instalado, chamado
+# pelo Calamares (módulos shellprocess@brummy e shellprocess@brummy-grub).
+#
+# Por que existe: o unpackfs copia o squashfs do live tal como está, e o live
+# carrega coisas que num sistema instalado são perigosas ou quebradas — root
+# sem senha, sshd aceitando root, chaveiro do pacman em tmpfs, initramfs do
+# archiso, /boot vazio (o mkarchiso apaga). E a camada de usuário do Brummy
+# que o live aplicou vive na RAM, não no squashfs: o usuário novo precisa
+# recebê-la aqui.
+#
+# Uso: brummy-pos-instalacao sistema <usuário>   (antes de packages e initcpio)
+#      brummy-pos-instalacao grub                (depois do grubcfg)
+set -uo pipefail
+
+log() { echo "[brummy-pos] $*"; }
+
+etapa_sistema() {
+  local usuario="$1"
+
+  log "1/7 tirando o que só servia no live"
+  rm -f /etc/mkinitcpio.conf.d/archiso.conf
+  rm -f /etc/systemd/system/multi-user.target.wants/pacman-init.service \
+        /etc/systemd/system/pacman-init.service \
+        /etc/systemd/system/etc-pacman.d-gnupg.mount
+  rm -f /etc/systemd/journald.conf.d/volatile-storage.conf \
+        /etc/systemd/logind.conf.d/do-not-suspend.conf
+  rm -f /etc/systemd/system/multi-user.target.wants/brummy-live-setup.service \
+        /etc/systemd/system/brummy-live-setup.service \
+        /usr/local/bin/brummy-live-setup /usr/local/bin/brummy-instalar \
+        /usr/share/applications/brummy-instalar.desktop
+  rm -f /etc/sudoers.d/00-brummy-live
+
+  log "2/7 kernel no /boot (o mkarchiso esvazia o /boot do squashfs)"
+  local kdir
+  for kdir in /usr/lib/modules/*/; do
+    if [[ -f "$kdir/pkgbase" && "$(cat "$kdir/pkgbase")" == "linux" ]]; then
+      install -Dm644 "$kdir/vmlinuz" /boot/vmlinuz-linux
+    fi
+  done
+  [[ -f /boot/vmlinuz-linux ]] || log "AVISO: vmlinuz não encontrado em /usr/lib/modules — o boot vai falhar"
+  # o preset padrão, caso o live tenha deixado outro
+  cat > /etc/mkinitcpio.d/linux.preset <<'PRESET'
+ALL_kver="/boot/vmlinuz-linux"
+PRESETS=('default' 'fallback')
+default_image="/boot/initramfs-linux.img"
+fallback_image="/boot/initramfs-linux-fallback.img"
+fallback_options="-S autodetect"
+PRESET
+
+  log "3/7 root travado (acesso é por sudo, o grupo wheel já tem)"
+  passwd -l root >/dev/null
+  usermod -s /bin/bash root
+
+  log "4/7 chaveiro do pacman e multilib"
+  pacman-key --init >/dev/null 2>&1 && pacman-key --populate archlinux >/dev/null 2>&1 \
+    || log "AVISO: pacman-key falhou — rode depois: sudo pacman-key --init && sudo pacman-key --populate"
+  if ! grep -q '^\[multilib\]' /etc/pacman.conf; then
+    printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf
+  fi
+
+  log "5/7 login gráfico do sistema instalado (tuigreet com senha)"
+  cp -f /opt/brummy-linux/config/greetd/config.toml /etc/greetd/config.toml
+
+  log "6/7 camada do Brummy para $usuario"
+  local home="/home/$usuario"
+  if [[ -d /opt/brummy-linux && -d "$home" ]]; then
+    # Cópia na home: é dela que ~/.config aponta, e é ela que a pessoa edita
+    # (e dá git pull) — igual a quem instalou pelo install.sh.
+    rm -rf "$home/brummy-linux"
+    cp -a /opt/brummy-linux "$home/brummy-linux"
+    chown -R "$usuario:$usuario" "$home/brummy-linux"
+    # dbus-run-session: sem ele o gsettings do install.sh não grava nada no
+    # chroot, e os apps GTK4 abririam claros.
+    runuser -u "$usuario" -- env HOME="$home" USER="$usuario" \
+      dbus-run-session -- bash -c 'cd ~/brummy-linux && ./install.sh --user-only' \
+      || log "AVISO: install.sh --user-only reclamou — depois do primeiro login rode: cd ~/brummy-linux && ./install.sh --user-only"
+  else
+    log "AVISO: sem /opt/brummy-linux ou $home — a camada do Brummy não foi aplicada"
+  fi
+
+  log "7/7 pronto"
+}
+
+etapa_grub() {
+  # O grubcfg do Calamares reescreve o /etc/default/grub; por isso isto vem
+  # depois dele e antes do bootloader, que roda o grub-mkconfig.
+  local g=/etc/default/grub
+  [[ -f "$g" ]] || { log "sem $g, nada a fazer"; return 0; }
+  if [[ -f /usr/share/brummy/grub-background.png ]]; then
+    install -Dm644 /usr/share/brummy/grub-background.png /boot/grub/brummy-background.png
+    if grep -q '^#\?GRUB_BACKGROUND=' "$g"; then
+      sed -i 's|^#\?GRUB_BACKGROUND=.*|GRUB_BACKGROUND="/boot/grub/brummy-background.png"|' "$g"
+    else
+      echo 'GRUB_BACKGROUND="/boot/grub/brummy-background.png"' >> "$g"
+    fi
+  fi
+  grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=.*splash' "$g" \
+    || sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\([^"]*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 splash"/' "$g"
+  log "grub: fundo do Brummy + splash do Plymouth"
+}
+
+case "${1:-}" in
+  sistema) [[ -n "${2:-}" ]] || { echo "uso: $0 sistema <usuário>" >&2; exit 1; }
+           etapa_sistema "$2" ;;
+  grub)    etapa_grub ;;
+  *)       echo "uso: $0 sistema <usuário> | grub" >&2; exit 1 ;;
+esac

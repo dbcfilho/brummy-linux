@@ -1,0 +1,58 @@
+# Build da ISO live no GitHub, sem precisar de Docker na sua máquina.
+# Manual: aba Actions → iso → Run workflow. A ISO sai como artefato do run
+# (fica 3 dias). Roda o mesmo ./iso/build.sh de sempre, no runner.
+name: iso
+
+on:
+  workflow_dispatch:
+    inputs:
+      com_dev:
+        description: "incluir o bundle dev (Java/Node/Postgres/k8s) — ISO bem maior"
+        type: boolean
+        default: false
+      sem_cache:
+        description: "reconstruir todos os pacotes do AUR"
+        type: boolean
+        default: false
+
+jobs:
+  iso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v5
+
+      # O runner vem com ~14GB livres; work dir do mkarchiso + squashfs + ISO
+      # passam disso. Estes diretórios são ferramentas que a build não usa.
+      - name: libera espaço em disco
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af
+          df -h /
+
+      # Os pacotes do AUR são a parte lenta (e a que mais quebra): cache entre runs.
+      - name: cache dos pacotes AUR
+        uses: actions/cache@v4
+        with:
+          path: iso/.cache/aur
+          key: aur-${{ hashFiles('packages/aur.packages', 'packages/dev-aur.packages') }}-${{ github.run_id }}
+          restore-keys: |
+            aur-${{ hashFiles('packages/aur.packages', 'packages/dev-aur.packages') }}-
+            aur-
+
+      - name: build
+        env:
+          BRUMMY_ISO_SEM_DEV: ${{ inputs.com_dev && '0' || '1' }}
+        run: ./iso/build.sh ${{ inputs.sem_cache && '--no-cache' || '' }}
+
+      - name: pacotes do AUR que falharam
+        if: always()
+        run: cat iso/.cache/aur/FALHARAM.txt 2>/dev/null || echo "nenhum"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: brummy-iso
+          path: iso/out/*.iso
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error

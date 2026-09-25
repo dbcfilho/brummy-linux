@@ -14,17 +14,29 @@ ok()   { printf '  \033[32mok\033[0m    %s\n' "$*"; }
 bad()  { printf '  \033[31mFALHA\033[0m %s\n' "$*"; falhas=$((falhas+1)); }
 head_() { printf '\n== %s\n' "$*"; }
 
+# Scripts shell = .sh, ou sem extensão e com shebang (o airootfs da ISO tem
+# passwd, shadow, hostname: sem extensão, e não são script).
+scripts_shell() {
+  local f
+  while IFS= read -r f; do
+    case "$f" in
+      *.sh) echo "$f" ;;
+      *) [[ "$(head -c2 "$f" 2>/dev/null)" == '#!' ]] && echo "$f" ;;
+    esac
+  done < <({ find bin tools iso install.sh -type f \( -name '*.sh' -o ! -name '*.*' \); find config -name '*.sh'; } 2>/dev/null | sort)
+}
+
 head_ "sintaxe dos scripts shell"
 while IFS= read -r f; do
   bash -n "$f" 2>/dev/null && ok "$f" || bad "$f"
-done < <(find bin tools iso install.sh -type f \( -name '*.sh' -o ! -name '*.*' \) 2>/dev/null | sort)
+done < <(scripts_shell)
 
 head_ "shellcheck (avisos e erros)"
 # Pega o que bash -n não pega: variável sem aspas, cd sem checagem, ls | grep...
 if command -v shellcheck &>/dev/null; then
   while IFS= read -r f; do
     out="$(LC_ALL=C.UTF-8 shellcheck -S warning -f gcc "$f" 2>&1)" && ok "$f" || { bad "$f"; echo "$out" | sed 's/^/        /'; }
-  done < <({ find bin tools iso install.sh -type f \( -name '*.sh' -o ! -name '*.*' \); find config -name '*.sh'; } 2>/dev/null | sort)
+  done < <(scripts_shell)
 else
   echo "  (pulado: instale shellcheck — sudo apt install shellcheck)"
 fi
@@ -143,6 +155,51 @@ else
   echo "  (pulado: instale jq)"
 fi
 rm -rf "$STUB"
+
+head_ "ISO: o que dá para conferir sem Docker"
+# A build real leva 40+ minutos; estes erros aparecem em segundos.
+pk="$(mktemp)"
+if bash iso/builder/gen-packages.sh . "$pk" >/dev/null 2>&1; then
+  faltam=""
+  # sem estes a build nem sai (kernel, boot BIOS/UEFI) ou o instalado não boota
+  for p in base linux linux-firmware mkinitcpio mkinitcpio-archiso syslinux grub efibootmgr calamares greetd plymouth; do
+    grep -qx "$p" "$pk" || faltam+=" $p"
+  done
+  [[ -z "$faltam" ]] && ok "packages.x86_64 tem base, kernel, bootloaders e calamares" || bad "packages.x86_64 sem:$faltam"
+else
+  bad "gen-packages.sh falhou"
+fi
+rm -f "$pk"
+dir="$(sed -n 's/^install_dir="\([^"]*\)".*/\1/p' iso/profile/profiledef.sh)"
+grep -q "/run/archiso/bootmnt/$dir/x86_64/airootfs.sfs" iso/calamares/modules/unpackfs.conf \
+  && ok "unpackfs aponta para o install_dir ($dir)" || bad "unpackfs.conf não aponta para install_dir=$dir do profiledef.sh"
+grep -q '@@PACOTES_LIVE@@' iso/calamares/modules/packages.conf \
+  && ok "packages.conf com o marcador da lista gerada" || bad "packages.conf perdeu o @@PACOTES_LIVE@@ (o build-iso.sh troca ele)"
+python3 - <<'PY' && ok "Calamares: YAML válido e todo módulo da sequência tem config" || bad "Calamares: veja acima"
+import glob, sys
+try:
+    import yaml
+except ImportError:
+    print("  (PyYAML ausente: YAML não conferido)"); sys.exit(0)
+base = "iso/calamares"
+erro = False
+def carrega(p):
+    return yaml.safe_load(open(p, encoding="utf-8").read())
+for p in glob.glob(base + "/modules/*.conf") + [base + "/settings.conf", base + "/branding/brummy/branding.desc"]:
+    try: carrega(p)
+    except Exception as e: print(f"  {p}: {e}"); erro = True
+s = carrega(base + "/settings.conf")
+inst = {i["id"]: i for i in s.get("instances", [])}
+for passo in s["sequence"]:
+    for mod in list(passo.values())[0]:
+        if "@" in mod:
+            iid = mod.split("@", 1)[1]
+            if iid not in inst:
+                print(f"  {mod}: instância não declarada"); erro = True
+            elif not glob.glob(f"{base}/modules/{inst[iid]['config']}"):
+                print(f"  {mod}: falta modules/{inst[iid]['config']}"); erro = True
+sys.exit(1 if erro else 0)
+PY
 
 head_ "tools/vm.sh: todo subcomando roda sem variável não associada"
 # set -u só estoura em tempo de execução, então cada caminho precisa ser
