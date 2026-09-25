@@ -1,5 +1,6 @@
-# Pacotes que existem só dentro da ISO live (não vão para o sistema instalado:
-# o módulo packages do Calamares remove estes depois de copiar).
+# Pacotes que existem só dentro da ISO live. O build-iso.sh gera a lista de
+# remoção do módulo packages do Calamares A PARTIR DESTE ARQUIVO: o que está
+# aqui sai do sistema instalado depois do unpackfs. Fonte única, sem cópia.
 archiso
 mkinitcpio-archiso
 arch-install-scripts
@@ -7,5 +8,11 @@ squashfs-tools
 memtest86+
 memtest86+-efi
 edk2-shell
+# boot BIOS da própria ISO
+syslinux
+# os hooks archiso_pxe_nbd e archiso_pxe_nfs do mkinitcpio.conf.d/archiso.conf
+# precisam destes; sem eles o initramfs do live não gera
+nbd
+mkinitcpio-nfs-utils
 # instalador gráfico (vem do AUR — construído por builder/aur-repo.sh)
 calamares

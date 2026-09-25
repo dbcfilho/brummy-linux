@@ -90,11 +90,14 @@ Detectados sozinhos pelo DMI (nome e tipo de chassi), pela bateria e pelo `lspci
 ### ISO live
 
 Em construção. A ideia é baixar, dar boot, ver o sistema rodando e instalar pelo
-Calamares. O esqueleto está em `iso/` e **ainda não foi construído nenhuma vez**:
+Calamares. Está em `iso/`, revisado, e **ainda não foi construído nenhuma vez**:
 
 ```bash
 ./iso/build.sh      # precisa de Docker; a ISO sai em iso/out/
 ```
+
+Ou sem Docker: aba **Actions → iso → Run workflow** no GitHub, e a ISO sai
+como artefato do run.
 
 ---
 
@@ -195,7 +198,9 @@ brummy-linux/
 - [ ] **v1.3** — janelas clicáveis sobre o tiling: hyprbars (`brummy bars on`),
       minimizar/restaurar com `󰖰` na Waybar. Config pronta e testada no CI;
       falta ver desenhando na VM — roteiro em `docs/janelas-clicaveis.md`
-- [ ] **v1.4** — primeira build da ISO live
+- [ ] **v1.4** — primeira build da ISO live. Esqueleto revisado contra o
+      código do archiso (dez problemas corrigidos, `iso/README.md`); build pelo
+      GitHub Actions (aba Actions → iso) ou `./iso/build.sh`
 - [ ] futuro — LFS / kernel próprio, para aprender (em outro repo)
 
 ---
