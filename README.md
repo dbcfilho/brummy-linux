@@ -2,36 +2,37 @@
 
 [![check](https://github.com/dbcfilho/brummy-linux/actions/workflows/check.yml/badge.svg)](https://github.com/dbcfilho/brummy-linux/actions/workflows/check.yml)
 
-Camada opinionada sobre **Arch Linux + Hyprland**. Não é um fork nem um kernel do
-zero: é a mesma ideia do [Omarchy](https://omarchy.org) do DHH — pegar um Arch
-limpo e deixá-lo pronto para o dia a dia com um comando — com visão própria.
+O Brummy é o meu Arch Linux com Hyprland, do jeito que eu gosto de usar. Ele
+não é um fork e não tem kernel próprio. A ideia é a mesma do
+[Omarchy](https://omarchy.org), do DHH: você instala um Arch limpo, roda um
+comando e a máquina fica pronta para o dia a dia. Só que as escolhas são minhas.
 
-**Híbrido minimalista + tradicional.** Rápido e guiado pelo teclado como um
-gerenciador de janelas em tiling, descobrível e clicável como GNOME ou KDE. Quem
-sabe os atalhos voa; quem não sabe tem barra com bandeja, dock, launcher com
-ícones, gerenciador de arquivos gráfico, barras de título com botões e um
-`brummy help` que conta tudo.
+Eu queria as duas coisas: a velocidade de um tiling, em que as janelas
+se arrumam sozinhas e tudo tem atalho, e o conforto de um GNOME ou KDE, em que
+dá para fazer tudo com o mouse sem decorar nada. Então o Brummy tem barra com
+bandeja, dock, launcher com ícones, gerenciador de arquivos, botões nas janelas
+e um `brummy help` para quando a memória falha.
 
-> **Estado: v1.4, primeira ISO construída.** O `install.sh` completo foi
-> validado numa VM limpa, a config do Hyprland passa no `--verify-config` a cada
-> push, e a ISO live com instalador gráfico saiu inteira do GitHub Actions pela
-> primeira vez. Faltam: testar a ISO de ponta a ponta numa VM, ver as barras de
-> título desenhando, e rodar no hardware real dos perfis `desktop` e `thinkpad`.
-> Veja o [roadmap](#roadmap). Por enquanto, de preferência numa VM.
+> Estado atual: v1.4. O `install.sh` completo rodou numa VM limpa, a
+> configuração do Hyprland é validada a cada push e a primeira ISO live saiu do
+> GitHub Actions. Ainda falta instalar a partir da ISO, ver as barras de título
+> funcionando numa sessão de verdade e rodar no meu hardware (o T430 e o
+> desktop). Enquanto isso, prefira testar numa VM. O [roadmap](#roadmap) tem o
+> resto.
 
 ---
 
 ## Sumário
 
-- [A ideia](#a-ideia)
+- [Como o projeto pensa](#como-o-projeto-pensa)
 - [O que vem dentro](#o-que-vem-dentro)
-- [Instalação](#instalação) — [pela ISO](#caminho-a-pela-iso-live) ou [sobre um Arch](#caminho-b-sobre-um-arch-já-instalado)
-- [O que o install.sh faz](#o-que-o-installsh-faz-passo-a-passo)
+- [Instalação](#instalação): [pela ISO](#pela-iso-live) ou [sobre um Arch](#sobre-um-arch-já-instalado)
+- [O que o install.sh faz](#o-que-o-installsh-faz)
 - [Perfis de máquina](#perfis-de-máquina)
 - [A área de trabalho](#a-área-de-trabalho)
 - [Atalhos](#atalhos)
 - [O comando brummy](#o-comando-brummy)
-- [Snapshots](#snapshots-a-rede-de-segurança)
+- [Snapshots](#snapshots)
 - [A ISO live](#a-iso-live)
 - [Para quem quiser mexer](#para-quem-quiser-mexer)
 - [Quando algo dá errado](#quando-algo-dá-errado)
@@ -41,18 +42,19 @@ sabe os atalhos voa; quem não sabe tem barra com bandeja, dock, launcher com
 
 ---
 
-## A ideia
+## Como o projeto pensa
 
-Três escolhas guiam tudo o que está aqui:
+Tudo fica no git. As pastas `~/.config/hypr`, `~/.config/waybar` e as outras são
+links para `config/` neste repositório, então editou uma config, a mudança já
+está versionada. Nada é gerado escondido na sua home.
 
-1. **Tudo versionado, nada mágico.** `~/.config/hypr`, `~/.config/waybar` e
-   companhia são *links* para `config/` neste repositório. Editou uma config, a
-   mudança já está no git. Nada é gerado escondido na sua home.
-2. **Uma fonte de verdade para pacotes.** As listas em `packages/` servem ao
-   `install.sh` *e* à ISO. Mexeu numa lista, mexeu nos dois.
-3. **Falhar alto, nunca calado.** Link de config quebrado, pacote do AUR que não
-   instalou, plugin que não carregou, snapshot desligado: o `brummy doctor` conta.
-   A lição veio de erros que só apareciam na hora do login.
+Os pacotes têm uma lista só. Os arquivos em `packages/` servem tanto ao
+`install.sh` quanto à ISO, e por isso as duas coisas nunca saem de sincronia.
+
+E quando algo falha, o sistema avisa. Eu aprendi isso do jeito ruim: link de
+config apontando para o vazio, pacote do AUR que não instalou, plugin que não
+carregou. Tudo isso só aparecia na hora do login, com a tela preta. Hoje o
+`brummy doctor` conta.
 
 ---
 
@@ -60,78 +62,84 @@ Três escolhas guiam tudo o que está aqui:
 
 | | |
 |---|---|
-| **Base** | Arch Linux (rolling). ~165 pacotes oficiais + ~20 do AUR, todos listados em `packages/` |
-| **Compositor** | Hyprland 0.55+, config em **Lua**, tiling automático com mouse tradicional |
-| **Login** | greetd + tuigreet, entrando no Hyprland pelo `start-hyprland` |
-| **Barra** | Waybar flutuante com bandeja; módulos de GPU, temperatura e bateria somem sozinhos quando o hardware não existe |
-| **Dock** | nwg-dock-hyprland, largura total, com a logo do Brummy abrindo o launcher |
-| **Launcher** | wofi no `SUPER+Espaço`, estilo Spotlight, sem apps "parasitas" de dependência |
-| **Janelas** | barras de título com fechar / minimizar / maximizar (hyprbars, opcional) e minimizar de verdade |
-| **Arquivos** | Nautilus (`SUPER+E`), Thunar de reserva |
-| **Terminal** | kitty, com cadeia de fallback até o xterm — ficar sem terminal não é estado válido |
-| **Shell** | fish + starship (opcional: o instalador não troca seu shell) |
-| **Tema** | WhiteSur-Dark + accent azul, ícones WhiteSur, cursor Bibata, Inter + JetBrains Mono Nerd |
-| **Boot** | logo do Brummy no GRUB + splash Plymouth com halo respirando |
-| **Segurança** | snapshots automáticos antes de cada atualização (com `/` em btrfs) |
+| Base | Arch Linux (rolling). ~165 pacotes oficiais e ~20 do AUR, todos listados em `packages/` |
+| Compositor | Hyprland 0.55+, com a config em Lua. Tiling automático, mas com mouse de verdade |
+| Login | greetd com tuigreet, entrando no Hyprland pelo `start-hyprland` |
+| Barra | Waybar flutuante com bandeja. Os módulos de GPU, temperatura e bateria somem quando o hardware não existe |
+| Dock | nwg-dock-hyprland na largura toda, com a logo do Brummy abrindo o launcher |
+| Launcher | wofi no `SUPER+Espaço`, no estilo do Spotlight, sem os apps que as dependências espalham |
+| Janelas | barras de título com fechar, minimizar e maximizar (opcional), e um minimizar que funciona |
+| Arquivos | Nautilus no `SUPER+E`, com o Thunar de reserva |
+| Terminal | kitty. Se ele não abrir, o atalho tenta outros até chegar no xterm |
+| Shell | fish com starship. O instalador não troca o seu shell sem você pedir |
+| Tema | WhiteSur-Dark com destaque azul, ícones WhiteSur, cursor Bibata, fontes Inter e JetBrains Mono Nerd |
+| Boot | a logo do Brummy no GRUB e um splash do Plymouth com uma luz que pulsa |
+| Proteção | snapshot antes de cada atualização, quando o `/` é btrfs |
 
-### Os pacotes, por categoria
+### Os pacotes
 
-Tudo em `packages/` — edite à vontade e rode o `./install.sh` de novo.
+Estão todos em `packages/`. Mudou alguma lista, é só rodar o `./install.sh` de
+novo.
 
 | Categoria | O que entra |
 |---|---|
 | Desktop | hyprland, hyprlock, hypridle, hyprpaper, portais xdg, waybar, nwg-dock, wofi, kitty, fish, starship |
 | Captura e utilidades | hyprshot, grim, slurp, satty, cliphist, brightnessctl, pavucontrol, polkit-gnome, gnome-keyring, udiskie, blueman, NetworkManager |
 | Arquivos e imagem | nautilus, thunar, sushi, gvfs (mtp, smb), file-roller, gparted, evince, loupe, pinta |
-| Navegador | helium (padrão, AUR) + firefox |
+| Navegador | helium (padrão, AUR) e firefox |
 | Escrita e office | obsidian, gnome-text-editor, gnome-calculator, libreoffice-fresh, onlyoffice (AUR) |
 | Mídia e voz | mpv, obs-studio, spotify-launcher, discord, qbittorrent, easyeffects |
-| Desenvolvimento (base) | neovim, tmux, git, github-cli, lazygit, docker + compose, lazydocker, mise, fzf, ripgrep, fd, bat, eza, zoxide, btop, jq, vscodium (AUR) |
-| Desenvolvimento (bundle dev) | Java (openjdk latest + 21), maven, gradle, node, npm, python, uv, postgresql, redis, sqlite, dbeaver, kubectl, k9s, helm, kustomize, httpie, git-delta, direnv, postman (AUR) |
+| Desenvolvimento (base) | neovim, tmux, git, github-cli, lazygit, docker e compose, lazydocker, mise, fzf, ripgrep, fd, bat, eza, zoxide, btop, jq, vscodium (AUR) |
+| Desenvolvimento (bundle dev) | Java (openjdk mais recente e o 21), maven, gradle, node, npm, python, uv, postgresql, redis, sqlite, dbeaver, kubectl, k9s, helm, kustomize, httpie, git-delta, direnv, postman (AUR) |
 | Android (opcional) | android-studio (AUR), android-tools, scrcpy |
 | GPU AMD | mesa, vulkan-radeon, libva, e as versões lib32 para jogos |
 | Jogos | steam, lutris, bottles, wine, winetricks, gamemode, gamescope, mangohud, protonup-qt |
 | Virtualização | qemu, libvirt, virt-manager, virt-viewer, gnome-boxes, swtpm, OVMF |
 | Monitoramento | btop, mission-center, radeontop, nvtop |
-| Laptop (só `thinkpad`) | tlp, thermald, thinkfan (AUR), powertop, acpi, drivers Intel |
-| Snapshots (só btrfs) | snapper, snap-pac, grub-btrfs |
-| Outros apps (AUR) | opencode, claude-code, claude-desktop, claudebar (módulo de uso na Waybar), localsend, etcher |
+| Laptop (só no perfil `thinkpad`) | tlp, thermald, thinkfan (AUR), powertop, acpi, drivers Intel |
+| Snapshots (só com btrfs) | snapper, snap-pac, grub-btrfs |
+| Outros apps (AUR) | opencode, claude-code, claude-desktop, claudebar (o módulo de uso na Waybar), localsend, etcher |
 
 ---
 
 ## Instalação
 
-Dois caminhos. A ISO é o mais simples; o `install.sh` é o mais testado.
+Tem dois caminhos. A ISO é o mais fácil. O `install.sh` é o que mais foi
+testado até agora.
 
-### Caminho A: pela ISO live
+### Pela ISO live
 
-A ISO **já é o Brummy**: você dá boot, vê o sistema rodando antes de instalar e
-clica em "Instalar o Brummy Linux". O instalador gráfico (Calamares) copia o live
-para o disco — funciona sem internet, e o que você vê é o que você instala.
+A ISO já é o Brummy. Você dá boot, usa o sistema antes de decidir e, se gostar,
+clica em "Instalar o Brummy Linux". O instalador gráfico (o Calamares) copia o
+sistema do pendrive para o disco. Funciona sem internet, e o que você viu é o
+que vai ficar instalado.
 
-**Onde pegar:** a ISO é construída no GitHub Actions (aba **Actions → iso → Run
-workflow**) e fica como artefato do run por 3 dias:
+Por enquanto a ISO não tem página de download. Ela é construída no GitHub
+Actions (aba Actions, workflow `iso`, botão "Run workflow") e fica disponível no
+próprio run por 3 dias:
 
 ```bash
-gh workflow run iso.yml --ref main     # dispara a build (~30 min)
+gh workflow run iso.yml --ref main     # dispara a build, uns 30 minutos
 gh run watch                           # acompanha
 gh run download <id-do-run> -n brummy-iso -D iso/out
 ```
 
-Ou construa localmente, com Docker — veja [A ISO live](#a-iso-live).
+Também dá para construir na sua máquina com Docker, como está em
+[A ISO live](#a-iso-live).
 
-**Gravar no pendrive** (confira o dispositivo com `lsblk` antes):
+Para gravar no pendrive, confira o dispositivo com `lsblk` antes, porque o `dd`
+apaga o que estiver lá:
 
 ```bash
 sudo dd if=iso/out/brummy-*.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
 
-A ISO tem ~5 GB, então o pendrive precisa ter 8 GB ou mais.
+A ISO tem uns 5 GB, então use um pendrive de 8 GB ou mais.
 
-### Caminho B: sobre um Arch já instalado
+### Sobre um Arch já instalado
 
-Instale um Arch base — `archinstall` na ISO oficial resolve por menu — e rode
-**um comando**:
+Instale um Arch base (o `archinstall`, na ISO oficial, resolve tudo por menu) e
+rode:
 
 ```bash
 git clone https://github.com/dbcfilho/brummy-linux.git
@@ -139,108 +147,113 @@ cd brummy-linux
 ./install.sh
 ```
 
-No `archinstall`, **escolha btrfs como sistema de arquivos**: é o que liga os
-snapshots automáticos. Prefere instalador gráfico? EndeavourOS também serve de
-base. Os caminhos, do mais fácil ao mais cru, estão em `docs/install.md`.
+Uma dica: no `archinstall`, escolha btrfs como sistema de arquivos. É isso que
+liga os snapshots automáticos. Se preferir um instalador gráfico, o EndeavourOS
+também serve de base. O `docs/install.md` explica os caminhos com mais calma.
 
-O `install.sh` é **idempotente**: pode rodar quantas vezes quiser, e faz backup
-de toda config que substitui (`~/.config/<nome>.bak-brummy-<data>`).
+Pode rodar o `install.sh` quantas vezes quiser. Ele não refaz o que já está
+feito, e antes de substituir qualquer config guarda uma cópia em
+`~/.config/<nome>.bak-brummy-<data>`.
 
 | Opção | O que faz |
 |---|---|
-| `--profile desktop\|thinkpad\|general` | força o perfil em vez de detectar (aceita `--profile=x` também) |
+| `--profile desktop\|thinkpad\|general` | força um perfil em vez de detectar (`--profile=x` também funciona) |
 | `--no-dev` | pula o bundle de desenvolvimento |
-| `--with-android` | inclui o Android Studio (pesado, ~1 GB) |
+| `--with-android` | inclui o Android Studio, que pesa mais de 1 GB |
 | `--no-snapshots` | não configura o snapper, mesmo com `/` em btrfs |
 | `--no-boot` | não mexe no GRUB nem no Plymouth |
-| `--boot-only` | só refaz GRUB + Plymouth |
-| `--user-only` | só a camada de usuário: configs, tema, helpers — sem tocar em pacotes nem serviços |
+| `--boot-only` | refaz só o GRUB e o Plymouth |
+| `--user-only` | aplica só a parte do usuário (configs, tema, helpers), sem tocar em pacotes nem serviços |
 
-Cada execução deixa um log completo em `~/.local/state/brummy/install-*.log`.
+Cada execução grava um log completo em `~/.local/state/brummy/install-*.log`. Se
+der problema, é o primeiro arquivo que eu olharia.
 
 ---
 
-## O que o install.sh faz, passo a passo
+## O que o install.sh faz
 
-1. **Detecta o perfil** da máquina (veja [Perfis](#perfis-de-máquina)).
-2. **Liga o multilib** no `/etc/pacman.conf` (Steam e drivers lib32).
-3. **Atualiza o sistema** (`pacman -Syu`).
-4. **Instala o paru** como ajudante do AUR — conferindo se ele *funciona*, não só
-   se existe (um paru linkado contra uma libalpm antiga existe, mas quebra tudo).
-5. **Instala os pacotes**, um por vez: nome inexistente não derruba o resto.
-   Oficiais pelo pacman, AUR pelo paru, depois o bundle dev, Android (se pedido)
-   e a pilha de laptop (só no perfil `thinkpad`).
-6. **Configura snapshots** se `/` for btrfs: snapper, snap-pac, grub-btrfs,
-   retenção de 10 snapshots.
-7. **Copia os papéis de parede** para `~/Pictures/Brummy/`.
-8. **Linka as configs** de `config/` em `~/.config/` (com backup do que existia),
-   e remove links que apontem para o vazio.
-9. **Aplica o tema** GTK 2/3/4, ícones, cursor, fontes e `color-scheme` escuro
-   (a chave que faz os apps GTK4/libadwaita abrirem escuros).
-10. **Escolhe os módulos do Hyprland** do perfil (monitores e GPU).
-11. **Instala o comando `brummy`** e os helpers em `~/.local/bin`.
-12. **Liga os serviços**: PipeWire, NetworkManager, greetd, libvirt; põe você
-    nos grupos libvirt, kvm e docker.
-13. **Define os padrões**: Helium como navegador, Nautilus para pastas.
-14. **Limpa o launcher** de apps parasitas de dependência.
-15. **Monta o boot**: tema Plymouth, fundo do GRUB, `quiet splash`.
+Na ordem em que acontece:
+
+1. Descobre o perfil da máquina (mais sobre isso em [Perfis](#perfis-de-máquina)).
+2. Liga o multilib no `/etc/pacman.conf`, que a Steam e os drivers de 32 bits precisam.
+3. Atualiza o sistema com `pacman -Syu`.
+4. Instala o paru para os pacotes do AUR. Ele confere se o paru funciona, e não
+   só se o binário existe, porque um paru compilado contra uma libalpm antiga
+   existe, abre e quebra tudo em silêncio.
+5. Instala os pacotes um por vez, para que um nome errado não derrube os outros.
+   Primeiro os oficiais, depois os do AUR, o bundle dev, o Android se você pediu,
+   e as coisas de laptop no perfil `thinkpad`.
+6. Se o `/` for btrfs, configura o snapper, o snap-pac e o grub-btrfs, guardando
+   os 10 snapshots mais recentes.
+7. Copia os papéis de parede para `~/Pictures/Brummy/`.
+8. Linka as configs de `config/` em `~/.config/`, com backup do que existia, e
+   remove links que apontam para lugar nenhum.
+9. Aplica o tema no GTK 2, 3 e 4, ícones, cursor, fontes e o `color-scheme`
+   escuro. Sem essa última chave, os apps GTK4 abrem claros no meio do tema escuro.
+10. Escolhe os módulos do Hyprland (monitores e GPU) do perfil.
+11. Instala o comando `brummy` e os helpers em `~/.local/bin`.
+12. Liga o PipeWire, o NetworkManager, o greetd e o libvirt, e coloca você nos
+    grupos libvirt, kvm e docker.
+13. Define o Helium como navegador padrão e o Nautilus para abrir pastas.
+14. Tira do launcher os apps que as dependências espalham.
+15. Monta o boot: tema do Plymouth, fundo do GRUB e `quiet splash` na linha do kernel.
 
 ---
 
 ## Perfis de máquina
 
-Detectados sozinhos pelo DMI (nome e tipo de chassi), pela bateria e pelo `lspci`.
+O instalador detecta sozinho pelo DMI (o nome e o tipo de chassi), pela bateria
+e pelo `lspci`.
 
 | Perfil | Quando | Monitores | GPU | Energia |
 |---|---|---|---|---|
-| `desktop` | Xeon + RX 6600 XT, dois monitores 1080p | DP-1 à esquerda + HDMI-A-1 à direita | `gpu-amd` (RADV) | sem TLP, pensado para jogos |
-| `thinkpad` | T430 e qualquer laptop (chassi portátil ou bateria presente) | eDP-1 1366x768 + monitor externo | `gpu-intel` | TLP, thermald, thinkfan, TrackPoint |
-| `general` | todo o resto | `preferred, auto` | AMD se houver Radeon, senão Intel | sem TLP |
+| `desktop` | o meu Xeon com RX 6600 XT e dois monitores 1080p | DP-1 à esquerda, HDMI-A-1 à direita | `gpu-amd` (RADV) | sem TLP, pensado para jogar |
+| `thinkpad` | o meu T430, e qualquer laptop (chassi portátil ou bateria presente) | eDP-1 em 1366x768, mais um monitor externo | `gpu-intel` | TLP, thermald, thinkfan e TrackPoint |
+| `general` | o resto | `preferred, auto` | AMD se houver Radeon, senão Intel | sem TLP |
 
-Os módulos ficam em `config/hypr/modules/`; o instalador aponta
-`profile-monitors.lua` e `profile-gpu.lua` para os do perfil. Detalhes em
-`docs/profiles.md`.
+Os módulos ficam em `config/hypr/modules/`. O instalador só aponta
+`profile-monitors.lua` e `profile-gpu.lua` para os do perfil escolhido. O
+`docs/profiles.md` tem os detalhes.
 
 ---
 
 ## A área de trabalho
 
-**Tiling com mouse de verdade.** Janela nova entra e se acomoda sozinha, como em
-qualquer tiling. Mas dá para puxar a borda para redimensionar, arrastar com `ALT`
-para mover, e apps "de janelinha" (arquivos, volume, rede) já abrem flutuando e
-centralizados. Jogos entram em tela cheia, sem blur nem sombra.
+É um tiling que aceita mouse. As janelas novas entram e se arrumam sozinhas,
+mas você pode puxar a borda para redimensionar ou segurar `ALT` e arrastar para
+mover. Janelas pequenas, como as de arquivos, volume e rede, já abrem flutuando
+e no centro. Jogos abrem em tela cheia, sem blur nem sombra.
 
-**Waybar** (topo), da esquerda para a direita:
+A Waybar fica no topo. À esquerda estão a logo do Brummy (que abre o launcher),
+os workspaces (clique para ir, role a roda para trocar), o contador `󰖰 N` de
+janelas minimizadas e o título da janela ativa. O relógio fica no centro. À
+direita vêm o uso do Claude, CPU, memória, GPU, temperatura, a bandeja, o volume
+(a roda do mouse ajusta), rede, bateria, calendário e o ⏻ para desligar. Os
+módulos de GPU, temperatura e bateria somem quando não fazem sentido, em vez de
+deixar um buraco na barra.
 
-- logo do Brummy (abre o launcher), workspaces clicáveis (a roda do mouse troca),
-  o contador `󰖰 N` de janelas minimizadas (clique restaura) e o título da janela;
-- relógio no centro;
-- uso do Claude, CPU, memória, GPU, temperatura, bandeja, volume (roda do mouse
-  ajusta), rede, bateria, calendário e ⏻ para desligar.
+As barras de título são opcionais. Com `brummy bars on`, cada janela ganha três
+bolinhas à esquerda, na ordem do macOS: fechar, minimizar e maximizar. O símbolo
+aparece quando o mouse passa por cima, e dois cliques na barra maximizam. O
+tiling continua igual. Os detalhes, e o que isso custa, estão em
+`docs/janelas-clicaveis.md`.
 
-Os módulos de GPU, temperatura e bateria imprimem vazio quando não se aplicam, e a
-Waybar esconde em vez de deixar buraco.
+O Hyprland não tem minimizar. O que o Brummy faz é guardar a janela numa gaveta
+(um workspace especial chamado `special:minimizado`) e trazer de volta pelo
+`SUPER+SHIFT+M` ou pelo `󰖰` da barra. Se tiver mais de uma guardada, o wofi
+pergunta qual.
 
-**Janelas clicáveis** (opcional, `brummy bars on`): cada janela ganha uma barra de
-título com as três bolinhas à esquerda, na ordem do macOS — fechar, minimizar,
-maximizar. O símbolo aparece com o mouse em cima; duplo clique na barra maximiza.
-O tiling continua igual. Detalhes e custos em `docs/janelas-clicaveis.md`.
-
-**Minimizar de verdade.** O Hyprland não tem minimizar; o Brummy manda a janela
-para uma gaveta (`special:minimizado`) e a traz de volta pelo `SUPER+SHIFT+M` ou
-pelo `󰖰` da barra. Com mais de uma na gaveta, o wofi pergunta qual.
-
-**Papel de parede:** uma foto da Terra vista da ISS (NASA) por padrão, mais duas
-da NASA e três recortes de uma foto do Parque do Ibitipoca. `brummy wallpaper
-next` troca.
+O papel de parede padrão é uma foto que a NASA tirou da ISS. Tem mais
+duas da NASA e três recortes de uma foto que eu tirei no Parque do Ibitipoca.
+`brummy wallpaper next` troca.
 
 ---
 
 ## Atalhos
 
-`brummy help` mostra tudo, a qualquer momento.
+Esqueceu algum? `brummy help` mostra todos.
 
-**Teclado**
+Teclado:
 
 | Atalho | Ação | Atalho | Ação |
 |---|---|---|---|
@@ -248,24 +261,24 @@ next` troca.
 | `SUPER+E` | arquivos | `SUPER+B` | navegador |
 | `SUPER+SHIFT+C` | editor (VSCodium) | `SUPER+L` | bloquear a tela |
 | `SUPER+C` | fechar a janela | `SUPER+F` | tela cheia |
-| `SUPER+V` | flutuar / voltar ao tiling | `SUPER+SHIFT+S` | captura de tela |
-| `SUPER+M` | minimizar | `SUPER+SHIFT+M` | restaurar minimizada |
+| `SUPER+V` | soltar a janela do tiling (e voltar) | `SUPER+SHIFT+S` | captura de tela |
+| `SUPER+M` | minimizar | `SUPER+SHIFT+M` | trazer de volta a minimizada |
 | `SUPER+J` / `SUPER+K` | próxima / anterior janela | `SUPER+SHIFT+Q` | sair do Hyprland |
 | `SUPER+1..9` | ir para o workspace | `SUPER+SHIFT+1..9` | mandar a janela para o workspace |
 
-Teclas de mídia, volume e brilho funcionam, inclusive com a tela bloqueada.
+As teclas de mídia, volume e brilho funcionam mesmo com a tela bloqueada.
 
-**Mouse**
+Mouse:
 
 | Gesto | Ação |
 |---|---|
 | puxar a borda da janela | redimensionar, sem tecla nenhuma |
-| `SUPER` ou `ALT` + arrastar (botão esquerdo) | mover |
-| `SUPER` ou `ALT` + arrastar (botão direito) | redimensionar |
-| `SUPER` + roda | trocar de workspace |
-| `SUPER` + clique do meio | fechar |
-| `SUPER+SHIFT` + clique direito | flutuar / voltar ao tiling |
-| três dedos para o lado (touchpad) | trocar de workspace |
+| `SUPER` ou `ALT` e arrastar com o botão esquerdo | mover |
+| `SUPER` ou `ALT` e arrastar com o botão direito | redimensionar |
+| `SUPER` e a roda | trocar de workspace |
+| `SUPER` e o clique do meio | fechar |
+| `SUPER+SHIFT` e o clique direito | soltar do tiling (e voltar) |
+| três dedos para o lado, no touchpad | trocar de workspace |
 
 ---
 
@@ -273,40 +286,39 @@ Teclas de mídia, volume e brilho funcionam, inclusive com a tela bloqueada.
 
 | Comando | O que faz |
 |---|---|
-| `brummy help` | atalhos e comandos, sem precisar decorar nada |
+| `brummy help` | atalhos e comandos, para não precisar decorar |
 | `brummy apps` | o que veio instalado, por categoria |
-| `brummy doctor` | diagnóstico completo (abaixo) |
-| `brummy update` | snapshot, `pacman -Syu`, recompila plugins do Hyprland, refaz os links |
-| `brummy fix` | remove links de config quebrados e refaz a camada de usuário |
+| `brummy doctor` | o diagnóstico completo (explicado abaixo) |
+| `brummy update` | tira um snapshot, roda o `pacman -Syu`, recompila os plugins do Hyprland e refaz os links |
+| `brummy fix` | apaga links de config quebrados e refaz a parte do usuário |
 | `brummy wallpaper list \| set <arquivo> \| next` | troca o papel de parede |
-| `brummy hide [--list \| --undo]` | esconde do launcher os apps parasitas |
-| `brummy bars on \| off \| status` | barras de título clicáveis (rode dentro da sessão) |
+| `brummy hide [--list \| --undo]` | esconde do launcher os apps que não interessam |
+| `brummy bars on \| off \| status` | liga ou desliga as barras de título (rode dentro da sessão) |
 | `brummy snapshot list \| create <descrição> \| rollback` | pontos de restauração |
-| `brummy extras` | instala os apps do AUR que faltam (os que falharam, ou que a ISO pública não traz) |
+| `brummy extras` | instala os apps do AUR que faltam: os que falharam na instalação e os que a ISO pública não traz |
 | `brummy uninstall` | tira os links e devolve os backups das suas configs |
-| `brummy theme` | onde mexer no tema |
+| `brummy theme` | mostra onde mexer no tema |
 
-**O `brummy doctor` é o primeiro lugar para olhar** quando algo parecer errado.
-Ele confere: o perfil ativo, os pacotes de que o visual depende, **links de config
-apontando para o vazio** (a causa nº 1 de "o login gráfico não entra"), a config
-Lua do Hyprland, o greetd, o tema escuro, o papel de parede, **cada pacote do AUR
-que falhou calado na instalação**, os snapshots, as barras de título, o bundle
-dev, a pilha de laptop, o boot, a GPU e o KVM.
+Quando algo parece errado, eu começo pelo `brummy doctor`. Ele confere o perfil
+ativo, os pacotes de que o visual depende, os links de config (um link apontando
+para o vazio é o motivo mais comum de o login gráfico não entrar), a config em
+Lua do Hyprland, o greetd, o tema escuro, o papel de parede, cada pacote do AUR
+que falhou sem avisar na instalação, os snapshots, as barras de título, o bundle
+dev, as coisas de laptop, o boot, a GPU e o KVM.
 
 ---
 
-## Snapshots: a rede de segurança
+## Snapshots
 
-Arch é rolling. Quase sempre o `pacman -Syu` passa liso; quando não passa, o
-sintoma costuma ser o pior: a sessão gráfica não sobe.
+O Arch é rolling release. Quase sempre o `pacman -Syu` passa sem problema.
+Quando não passa, costuma ser do pior jeito possível: a sessão gráfica não sobe
+e você fica olhando para um terminal.
 
-Com `/` em **btrfs**, o `install.sh` liga:
-
-- **snapper** — cria e gerencia os snapshots do `/`;
-- **snap-pac** — um snapshot antes e outro depois de *toda* transação do pacman;
-- **grub-btrfs** — os snapshots aparecem num submenu do GRUB, para dar boot num
-  estado que funcionava;
-- **limpeza automática** — guarda os 10 mais recentes.
+Com o `/` em btrfs, o `install.sh` configura quatro coisas. O snapper cria e
+gerencia os snapshots. O snap-pac tira um snapshot antes e outro depois de cada
+`pacman`. O grub-btrfs coloca esses snapshots num submenu do GRUB, para você dar
+boot num estado que funcionava. E uma limpeza automática guarda só os 10 mais
+recentes.
 
 ```bash
 brummy snapshot                      # lista
@@ -314,69 +326,73 @@ brummy snapshot create antes-do-driver
 brummy snapshot rollback             # mostra o caminho de volta
 ```
 
-O `/home` fica fora dos snapshots do `/`: voltar o sistema nunca desfaz seus
-arquivos. O passo a passo da restauração está em `docs/snapshots.md`.
+O `/home` fica de fora dos snapshots do `/`, então voltar o sistema nunca desfaz
+os seus arquivos. O passo a passo da restauração está em `docs/snapshots.md`.
 
 ---
 
 ## A ISO live
 
-Construída com o **archiso**, rodando dentro de um container Arch (o archiso só
-roda em Arch; assim dá para construir de qualquer distro com Docker).
+A ISO é feita com o archiso. Como ele só roda em Arch, a build acontece dentro de
+um container Docker com Arch, o que permite construir a partir de qualquer
+distro.
 
 ```
-iso/build.sh                  roda no seu PC (ou no GitHub Actions)
-  └─ docker run archlinux     privilegiado: o mkarchiso monta loop devices
+iso/build.sh                  roda no seu PC ou no GitHub Actions
+  └─ docker run archlinux     com --privileged, porque o mkarchiso monta loop devices
        └─ builder/build-iso.sh
-            ├─ aur-repo.sh      AUR → repositório pacman local (com cache)
-            ├─ gen-packages.sh  packages/*.packages → lista do archiso
-            ├─ perfil           boot do releng + airootfs do Brummy
-            └─ mkarchiso        → iso/out/brummy-AAAA.MM.DD-x86_64.iso
+            ├─ aur-repo.sh      compila o AUR num repositório local, com cache
+            ├─ gen-packages.sh  junta packages/*.packages na lista do archiso
+            ├─ perfil           boot do releng e o airootfs do Brummy
+            └─ mkarchiso        gera iso/out/brummy-AAAA.MM.DD-x86_64.iso
 ```
 
-**Construir localmente:**
+Para construir na sua máquina:
 
 ```bash
-sudo apt install docker.io && sudo usermod -aG docker $USER   # relogue depois
-./iso/build.sh                       # 40-90 min na primeira vez
-BRUMMY_ISO_SEM_DEV=1 ./iso/build.sh  # sem o bundle dev (ISO menor)
-BRUMMY_ISO_PUBLICA=1 ./iso/build.sh  # para distribuir: sem o que não pode ser redistribuído
-./iso/build.sh --no-cache            # reconstrói todos os pacotes do AUR
-./iso/build.sh --shell               # shell no container, para depurar
+sudo apt install docker.io && sudo usermod -aG docker $USER   # depois, saia e entre de novo
+./iso/build.sh                       # de 40 a 90 minutos na primeira vez
+BRUMMY_ISO_SEM_DEV=1 ./iso/build.sh  # sem o bundle dev, para uma ISO menor
+BRUMMY_ISO_PUBLICA=1 ./iso/build.sh  # para distribuir (explicado abaixo)
+./iso/build.sh --no-cache            # recompila todos os pacotes do AUR
+./iso/build.sh --shell               # abre um shell no container, para depurar
 ```
 
-**ISO para distribuir.** Alguns apps do AUR são binários de terceiros que não
-podem ser redistribuídos. No modo público (opção `publica` no workflow), a build
-lê a licença de cada pacote e deixa de fora os restritos, além dos listados em
-`packages/iso-publica.exclui`; toda build publica um `LICENCAS.txt` com o que
-entrou e por quê. Quem instala pega o resto com `brummy extras`.
-
-**Construir no GitHub:** aba **Actions → iso → Run workflow**. Mesmo script, cache
-dos pacotes do AUR entre builds (salvo até quando a build falha), e ao fim o run
+Pelo GitHub, é a aba Actions, workflow `iso`, "Run workflow". O script é o
+mesmo. Os pacotes do AUR ficam em cache entre as builds, inclusive quando a build
+falha (no começo não ficavam, e cada tentativa recompilava tudo). No fim, o run
 lista o que ficou de fora.
 
-**Testar sem gravar nada:**
+Se a ideia for publicar a ISO, tem um detalhe. Alguns apps do AUR são binários
+de terceiros que não podem ser redistribuídos. No modo público (a opção
+`publica` no workflow), a build lê a licença de cada pacote e deixa os restritos
+de fora, além dos que estão em `packages/iso-publica.exclui`. Toda build gera um
+`LICENCAS.txt` dizendo o que entrou e por quê, e quem instala pega o resto
+depois com `brummy extras`.
+
+Para testar sem gravar nada:
 
 ```bash
 ./tools/vm.sh criar
 ./tools/vm.sh iso iso/out/brummy-*.iso
 ```
 
-**O que acontece na instalação.** O live carrega coisas que num sistema instalado
-seriam perigosas ou quebradas. O Calamares roda o `brummy-pos-instalacao` no
-sistema novo, que:
+Um cuidado que a ISO exige: o sistema live carrega coisas que seriam perigosas
+ou quebradas num sistema instalado. Por isso o Calamares roda o
+`brummy-pos-instalacao` no sistema novo antes de terminar. Ele:
 
-- põe o kernel no `/boot` (o mkarchiso esvazia o `/boot` do live);
-- tira os serviços e configs que só servem ao live (chaveiro em tmpfs, journal
-  em RAM, initramfs do archiso);
-- trava o root — o acesso é por `sudo`, como no Arch;
+- coloca o kernel no `/boot`, que o mkarchiso deixa vazio;
+- remove o que só serve ao live, como o chaveiro do pacman em memória, o journal
+  em RAM e o initramfs do archiso;
+- trava a conta root, porque o acesso é por `sudo`, como no Arch;
 - cria o chaveiro do pacman de verdade e liga o multilib;
-- põe o login com senha (tuigreet) no lugar do login automático do live;
-- aplica a camada do Brummy no usuário criado, com o repositório em
-  `~/brummy-linux` — um clone de verdade, onde `git pull` funciona;
-- aplica o fundo do GRUB e o splash do Plymouth.
+- troca o login automático do live pelo login com senha;
+- aplica o Brummy no usuário que você criou, com o repositório em
+  `~/brummy-linux`, que é um clone de verdade (o `git pull` funciona);
+- coloca o fundo do GRUB e o splash do Plymouth.
 
-Tudo sobre a ISO, inclusive o histórico de cada build, está em `iso/README.md`.
+O `iso/README.md` tem tudo sobre a ISO, inclusive o histórico de cada build que
+quebrou até a primeira dar certo.
 
 ---
 
@@ -386,37 +402,38 @@ Tudo sobre a ISO, inclusive o histórico de cada build, está em `iso/README.md`
 
 ```
 brummy-linux/
-  install.sh              instalador idempotente (perfis + opções)
-  packages/               listas de pacotes: fonte única, do install.sh e da ISO
-    base, dev, laptop, btrfs          pelo pacman
+  install.sh              o instalador (perfis e opções)
+  packages/               listas de pacotes, usadas pelo install.sh e pela ISO
+    base, dev, laptop, btrfs          vão pelo pacman
     aur, dev-aur, laptop-aur,
-    android-aur                       pelo paru
-  bin/                    brummy (CLI) e helpers
+    android-aur                       vão pelo paru
+    iso-publica.exclui/.permite       o que a ISO pública deixa de fora ou libera
+  bin/                    o comando brummy e os helpers
     brummy-wallpaper-apply  aplica o papel de parede (fala as duas IPCs do hyprpaper)
     brummy-hide-apps        limpa o launcher
     brummy-minimizados      a gaveta das janelas minimizadas
     brummy-remove-preinstalls
   config/                 vira ~/.config/* por link simbólico
-    hypr/hyprland.lua       config principal (Lua, Hyprland 0.55+)
+    hypr/hyprland.lua       a config principal (Lua, Hyprland 0.55+)
     hypr/modules/           perfis de monitor, GPU e trackpoint
     hypr/legacy/            a config .conf antiga, só para consulta
-    waybar/                 config, estilo e scripts dos módulos
+    waybar/                 config, estilo e os scripts dos módulos
     kitty/ wofi/ fish/ fastfetch/ nwg-dock-hyprland/ gtk-3.0/ gtk-4.0/ greetd/
     brummy/hidden-apps.list
-  themes/wallpapers/      papéis de parede (ORIGEM.md diz de onde veio cada um)
-  boot/                   tema Plymouth, gerador de assets, fundo do GRUB
-  iso/                    ISO live com Calamares
-    build.sh                orquestrador (Docker)
+  themes/wallpapers/      papéis de parede (o ORIGEM.md diz de onde veio cada um)
+  boot/                   tema do Plymouth, o gerador de imagens e o fundo do GRUB
+  iso/                    a ISO live com Calamares
+    build.sh                o orquestrador (Docker)
     builder/                build-iso, aur-repo, gen-packages
-    profile/                profiledef, airootfs, pacotes só da ISO
-    calamares/              configuração e identidade visual do instalador
+    profile/                profiledef, airootfs e os pacotes que só a ISO usa
+    calamares/              configuração e visual do instalador
   tools/
-    check.sh                todas as checagens que dão para fazer sem instalar nada
-    vm.sh                   criar, bootar e acessar VMs de teste
-    host-keys.sh            solta o SUPER do host (GNOME) durante o teste
+    check.sh                as checagens que dá para fazer sem instalar nada
+    vm.sh                   cria, liga e acessa as VMs de teste
+    host-keys.sh            libera a tecla SUPER do GNOME do host durante o teste
   .github/workflows/
-    check.yml               check.sh + hyprland --verify-config por perfil, a cada push
-    iso.yml                 build da ISO, manual
+    check.yml               check.sh e hyprland --verify-config, a cada push
+    iso.yml                 a build da ISO, disparada à mão
   docs/                   as notas técnicas
 ```
 
@@ -426,42 +443,49 @@ brummy-linux/
 ./tools/check.sh
 ```
 
-Roda, em segundos: sintaxe e **shellcheck** de todo script; JSON da Waybar e do
-fastfetch; sintaxe Lua; o bloco das barras de título conferido contra o que o
-plugin exige (com e sem o plugin carregado); nenhum `hyprctl dispatch` com a
-sintaxe antiga; a gaveta de minimizados com um `hyprctl` de mentira; a ISO
-(pacotes essenciais, `install_dir`, YAML do Calamares); e cada subcomando do
-`vm.sh` e do `brummy`.
+Em poucos segundos ele passa o shellcheck em todos os scripts, valida o JSON da
+Waybar e do fastfetch e a sintaxe do Lua, e confere se o bloco das barras de
+título tem o que o plugin exige, com e sem o plugin carregado. Também reprova
+qualquer `hyprctl dispatch` escrito do jeito antigo, testa a gaveta de
+minimizados com um `hyprctl` de mentira, confere a ISO (pacotes essenciais,
+`install_dir`, o YAML do Calamares, a lista de exclusão) e roda cada subcomando
+do `vm.sh` e do `brummy`.
 
-No GitHub, a cada push, o mesmo `check.sh` roda junto com o **`hyprland
---verify-config` num container Arch para cada perfil**: config inválida deixa o
-commit vermelho, sem precisar abrir a VM.
+No GitHub, a cada push, o mesmo `check.sh` roda junto com o `hyprland
+--verify-config` num container Arch, uma vez para cada perfil. Se a config
+estiver inválida, o commit fica vermelho, e não preciso abrir a VM para
+descobrir.
 
 ### Testar numa VM
 
 ```bash
 ./tools/vm.sh deps                # o que instalar no host
-./tools/vm.sh criar               # disco novo
-./tools/vm.sh achar               # acha discos de VM que você já tem
-./tools/vm.sh overlay <disco>     # boota um deles sem escrever nele
-./tools/vm.sh enviar              # manda o repo para dentro da VM
-./tools/vm.sh ssh                 # terminal na VM, sem depender de atalho
+./tools/vm.sh criar               # cria um disco novo
+./tools/vm.sh achar               # procura discos de VM que você já tem
+./tools/vm.sh overlay <disco>     # liga um deles sem escrever nele
+./tools/vm.sh enviar              # manda o repositório para dentro da VM
+./tools/vm.sh ssh                 # abre um terminal na VM, sem depender de atalho
 ./tools/host-keys.sh liberar      # solta o SUPER do GNOME do host (e devolve depois)
 ```
 
-Roteiro completo, e como sair de cada enrosco, em `docs/teste-vm.md`.
+O roteiro completo, e como sair de cada enrosco, está em `docs/teste-vm.md`.
 
-### Lições que viraram regra
+### O que eu aprendi errando
 
-- **Nunca confie em API de terceiro para o Hyprland.** Um `hl.print` inexistente
-  derrubou o login. Hoje a config sai do código-fonte e passa pelo
-  `--verify-config` no CI.
-- **Com config em Lua, `hyprctl dispatch` recebe Lua.** `hyprctl dispatch
-  workspace e+1` falha calado; o certo é `hyprctl dispatch
-  'hl.dsp.focus({ workspace = "e+1" })'`. O `check.sh` reprova o formato antigo.
-- **Autostart nunca derruba a sessão.** Cada comando roda dentro de `pcall`.
-- **Link de config quebrado impede o login.** Por isso `brummy fix` e a checagem
-  no `doctor`.
+Não confio mais em documentação de terceiros sobre o Hyprland. Uma função
+`hl.print` que não existe derrubou o meu login. Hoje a config sai do código-fonte
+e passa pelo `--verify-config` no CI antes de chegar em qualquer máquina.
+
+Com a config em Lua, o `hyprctl dispatch` recebe Lua. Escrever `hyprctl dispatch
+workspace e+1`, como antes, falha sem dar erro nenhum. O certo é `hyprctl
+dispatch 'hl.dsp.focus({ workspace = "e+1" })'`, e o `check.sh` reprova o
+formato antigo. Foi assim que eu descobri que a roda do mouse nos workspaces
+estava quebrada fazia quase duas semanas.
+
+Nada no autostart pode derrubar a sessão. Cada comando roda dentro de um `pcall`.
+
+E um link de config quebrado impede o login. Por isso existem o `brummy fix` e a
+checagem no `doctor`.
 
 ---
 
@@ -469,13 +493,13 @@ Roteiro completo, e como sair de cada enrosco, em `docs/teste-vm.md`.
 
 | Sintoma | O que fazer |
 |---|---|
-| O login gráfico não entra | num TTY (`Ctrl+Alt+F2`), rode `brummy fix`; depois `brummy doctor` |
+| O login gráfico não entra | num terminal (`Ctrl+Alt+F2`), rode `brummy fix` e depois `brummy doctor` |
 | Mexi numa config e a sessão quebrou | `hyprland --verify-config` aponta a linha |
-| Uma atualização quebrou o sistema | no GRUB, entre em "Arch Linux snapshots"; depois `docs/snapshots.md` |
+| Uma atualização quebrou o sistema | no GRUB, entre em "Arch Linux snapshots" e siga o `docs/snapshots.md` |
 | As barras de título sumiram depois de atualizar | `brummy bars on`, dentro da sessão |
-| Um app do AUR não veio | `brummy doctor` lista; `paru -S <pacote>` mostra o erro |
-| Apps GTK abrem claros | `brummy doctor` confere o `color-scheme`; `./install.sh --user-only` reaplica |
-| Apareceu lixo no launcher | `brummy hide` |
+| Um app do AUR não veio | `brummy extras` instala o que falta; `brummy doctor` mostra a lista |
+| Os apps GTK abrem claros | o `brummy doctor` confere o `color-scheme`; `./install.sh --user-only` reaplica |
+| Apareceu coisa estranha no launcher | `brummy hide` |
 | Quero voltar às minhas configs antigas | `brummy uninstall` |
 
 ---
@@ -484,55 +508,56 @@ Roteiro completo, e como sair de cada enrosco, em `docs/teste-vm.md`.
 
 | Nota | Assunto |
 |---|---|
-| `docs/install.md` | os caminhos de instalação, do mais fácil ao mais cru |
+| `docs/install.md` | os caminhos de instalação, do mais fácil ao mais trabalhoso |
 | `docs/profiles.md` | perfis de máquina, monitores e GPU |
 | `docs/dev.md` | o bundle de desenvolvimento |
-| `docs/boot.md` | GRUB e Plymouth com a logo |
-| `docs/hyprland-lua.md` | a migração para Lua, equivalências e como validar |
-| `docs/janelas-clicaveis.md` | barras de título, minimizar, e como é testado |
-| `docs/snapshots.md` | snapper + grub-btrfs, e como voltar a um snapshot |
-| `docs/teste-vm.md` | roteiro de teste em VM |
-| `docs/extensions.md` | extensões do GNOME (como o Astra Monitor) e o equivalente no Brummy |
-| `iso/README.md` | a ISO live: como funciona, como construir, histórico das builds |
+| `docs/boot.md` | o GRUB e o Plymouth com a logo |
+| `docs/hyprland-lua.md` | a migração para Lua e como validar |
+| `docs/janelas-clicaveis.md` | as barras de título, o minimizar e como isso é testado |
+| `docs/snapshots.md` | snapper e grub-btrfs, e como voltar a um snapshot |
+| `docs/teste-vm.md` | o roteiro de teste em VM |
+| `docs/extensions.md` | extensões do GNOME (como o Astra Monitor) e o que usar no lugar |
+| `iso/README.md` | a ISO: como funciona, como construir e o histórico das builds |
 
 ---
 
 ## Roadmap
 
-- [x] **v1** — scaffold, perfis, bundle dev, boot com logo, Nautilus
-- [x] **v1.1** — primeiro boot analisado em vídeo e corrigido: config migrada
-      para Lua (o `.conf` sai na 0.57), papel de parede, tema escuro nos apps
-      GTK4, cursor, Waybar sem buracos, launcher sem apps parasitas, logo do
-      Brummy no fastfetch
-- [x] **v1.1a** — `hyprland --verify-config` na VM: config ok
-- [x] **v1.2** — `./install.sh` completo validado numa VM limpa; CI com
-      shellcheck e verify-config por perfil; snapshots antes de atualizar;
-      `brummy uninstall`; log da instalação
-- [x] **v1.3** — janelas clicáveis (hyprbars) e minimizar/restaurar com `󰖰` na
-      Waybar; scroll dos workspaces corrigido para a sintaxe Lua
-- [x] **v1.4** — ISO live com Calamares: revisada contra o código do archiso,
-      construída no GitHub Actions (quatro builds até a primeira ISO inteira)
-- [ ] **v1.4a** — ISO testada de ponta a ponta numa VM: boot BIOS e UEFI,
-      instalação pelo Calamares, sistema instalado subindo com a cara do Brummy
-- [ ] **v1.3a** — barras de título vistas desenhando na VM
-- [ ] **v1.2a** — `./install.sh` no hardware real: T430 (`thinkpad`) e
-      RX 6600 XT (`desktop`)
-- [ ] **v1.5** — btrfs com subvolumes na ISO (snapshots também para quem instala
-      por ela), menu de boot da ISO com o nome do Brummy, ISO publicada para
-      download
-- [ ] futuro — LFS / kernel próprio, para aprender (em outro repositório)
+- [x] v1: a estrutura, os perfis, o bundle dev, o boot com a logo e o Nautilus
+- [x] v1.1: gravei o primeiro boot em vídeo e corrigi o que apareceu. A config
+      foi para Lua (o formato `.conf` sai na 0.57), e arrumei o papel de parede,
+      o tema escuro dos apps GTK4, o cursor, os buracos da Waybar, os apps
+      estranhos no launcher e a logo do Brummy no fastfetch
+- [x] v1.1a: `hyprland --verify-config` na VM respondeu `config ok`
+- [x] v1.2: o `./install.sh` completo rodou numa VM limpa. Vieram junto o CI com
+      shellcheck e verify-config para cada perfil, os snapshots antes de
+      atualizar, o `brummy uninstall` e o log da instalação
+- [x] v1.3: as barras de título e o minimizar com o `󰖰` na Waybar. De quebra,
+      consertei a roda do mouse nos workspaces, que estava com a sintaxe antiga
+- [x] v1.4: a ISO live com o Calamares. Revisei tudo contra o código do archiso
+      e foram quatro builds no GitHub Actions até a primeira sair inteira
+- [ ] v1.4a: testar a ISO de ponta a ponta numa VM, com boot em BIOS e em UEFI,
+      instalação pelo Calamares e o sistema instalado subindo com a cara do Brummy
+- [ ] v1.3a: ver as barras de título funcionando numa VM
+- [ ] v1.2a: rodar o `./install.sh` no meu hardware, o T430 (`thinkpad`) e o
+      desktop com a RX 6600 XT (`desktop`)
+- [ ] v1.5: btrfs com subvolumes na ISO, para quem instala por ela também ter
+      snapshots; o menu de boot da ISO com o nome do Brummy; e a ISO publicada
+      para download
+- [ ] algum dia: um Linux From Scratch, ou um kernel próprio, só para aprender.
+      Isso vai para outro repositório
 
 ---
 
 ## Licença e créditos
 
-**MIT** — veja `LICENSE`.
+A licença é MIT (veja o `LICENSE`).
 
-- Inspirado no [Omarchy](https://omarchy.org), de David Heinemeier Hansson.
-- Papéis de parede: foto do Parque Estadual do Ibitipoca (MG) do autor, e três
-  fotos da NASA em domínio público. As origens estão em
-  `themes/wallpapers/ORIGEM.md`.
-- Construído sobre o trabalho de Arch Linux, Hyprland, archiso, Calamares e de
-  cada mantenedor de pacote do AUR que ele usa.
+A ideia veio do [Omarchy](https://omarchy.org), do David Heinemeier Hansson. A
+foto do Parque Estadual do Ibitipoca é minha, e as outras três são da NASA, em
+domínio público. As origens de cada uma estão em `themes/wallpapers/ORIGEM.md`.
+
+O resto é trabalho dos outros: Arch Linux, Hyprland, archiso, Calamares e quem
+mantém cada pacote do AUR que o Brummy usa. Eu só junto as peças.
 
 Feito para usar todo dia, e mexer por prazer.
