@@ -30,24 +30,34 @@ jobs:
           sudo docker image prune -af
           df -h /
 
-      # Os pacotes do AUR são a parte lenta (e a que mais quebra): cache entre runs.
-      - name: cache dos pacotes AUR
-        uses: actions/cache@v4
+      # Os pacotes do AUR são a parte lenta (e a que mais quebra): cache entre
+      # runs. restore e save separados porque o actions/cache normal só salva
+      # quando o job passa — e é justo a build que quebra no mkarchiso, depois
+      # de 15 minutos de AUR, que mais precisa do cache na próxima.
+      - name: restaura o cache do AUR
+        uses: actions/cache/restore@v4
         with:
           path: iso/.cache/aur
-          key: aur-${{ hashFiles('packages/aur.packages', 'packages/dev-aur.packages') }}-${{ github.run_id }}
-          restore-keys: |
-            aur-${{ hashFiles('packages/aur.packages', 'packages/dev-aur.packages') }}-
-            aur-
+          key: aur-${{ github.run_id }}
+          restore-keys: aur-
 
       - name: build
         env:
           BRUMMY_ISO_SEM_DEV: ${{ inputs.com_dev && '0' || '1' }}
         run: ./iso/build.sh ${{ inputs.sem_cache && '--no-cache' || '' }}
 
-      - name: pacotes do AUR que falharam
+      - name: salva o cache do AUR (mesmo se a build falhou)
         if: always()
-        run: cat iso/.cache/aur/FALHARAM.txt 2>/dev/null || echo "nenhum"
+        uses: actions/cache/save@v4
+        with:
+          path: iso/.cache/aur
+          key: aur-${{ github.run_id }}
+
+      - name: pacotes que ficaram de fora
+        if: always()
+        run: |
+          echo "AUR que não construiu:"; cat iso/.cache/aur/FALHARAM.txt 2>/dev/null || echo "  nenhum"
+          echo "sem repositório nenhum:"; cat iso/out/SUMIDOS.txt 2>/dev/null || echo "  nenhum"
 
       - uses: actions/upload-artifact@v4
         with:

@@ -28,13 +28,13 @@ LISTS=(base.packages dev.packages laptop.packages)
 # Listas AUR: os pacotes foram construídos por aur-repo.sh e ficam disponíveis
 # no repositório local [brummy-aur], então entram na instalação como qualquer
 # outro. Quem falhar é removido depois pelo build-iso.sh.
-AUR_LISTS=(aur.packages dev-aur.packages)
+AUR_LISTS=(aur.packages dev-aur.packages laptop-aur.packages)
 
 # BRUMMY_ISO_SEM_DEV=1: ISO menor (o CI usa por padrão); o bundle dev entra
 # depois com ./install.sh.
 if [[ "${BRUMMY_ISO_SEM_DEV:-0}" == "1" ]]; then
   LISTS=(base.packages laptop.packages)
-  AUR_LISTS=(aur.packages)
+  AUR_LISTS=(aur.packages laptop-aur.packages)
 fi
 
 {

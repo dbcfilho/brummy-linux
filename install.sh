@@ -204,6 +204,10 @@ elif [[ "$PROFILE" == "thinkpad" ]]; then
     [[ "$pkg" =~ ^#.*$ || -z "$pkg" ]] && continue
     sudo pacman -S --needed --noconfirm "$pkg" || echo "[brummy] laptop pacman pulou: $pkg"
   done < <(grep -v '^#' "$REPO_DIR/packages/laptop.packages" | grep -v '^$')
+  while read -r pkg; do
+    [[ "$pkg" =~ ^#.*$ || -z "$pkg" ]] && continue
+    $AUR "$pkg" || echo "[brummy] laptop AUR opcional falhou: $pkg"
+  done < "$REPO_DIR/packages/laptop-aur.packages"
   sudo systemctl enable --now tlp.service NetworkManager.service acpid.service 2>/dev/null || true
   sudo systemctl enable --now thermald.service 2>/dev/null || true
   sudo systemctl mask power-profiles-daemon.service 2>/dev/null || true  # conflita com TLP

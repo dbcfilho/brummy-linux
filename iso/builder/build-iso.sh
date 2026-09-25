@@ -11,11 +11,22 @@ RELENG=/usr/share/archiso/configs/releng
 NO_CACHE=""
 [[ "${1:-}" == "--no-cache" ]] && NO_CACHE="--no-cache"
 
+# Liga o multilib (Steam, drivers lib32). O sed sozinho não basta: na 2ª build
+# do CI ele não casou com o pacman.conf da imagem Docker e o mkarchiso
+# sincronizou só core e extra — "target not found: lib32-mesa, steam...".
+# Mesma rede de segurança que o install.sh já tinha: se não pegou, acrescenta.
+garante_multilib() {
+  local conf="$1"
+  sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/ s/^#//' "$conf"
+  grep -q '^\[multilib\]' "$conf" || printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> "$conf"
+  grep -q '^\[multilib\]' "$conf" || { echo "ERRO: não consegui ligar o multilib em $conf"; exit 1; }
+}
+
 echo "==> [1/7] dependências da build"
 pacman-key --init &>/dev/null || true
 # multilib também no container: sem ele, dependência lib32 de pacote do AUR
 # parece "não existe" e o pacote falha
-sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/ s/^#//' /etc/pacman.conf
+garante_multilib /etc/pacman.conf
 # -Syu, não -Sy: atualização parcial é o jeito clássico de quebrar um Arch.
 # dosfstools + mtools: o mkarchiso monta a partição EFI da ISO com eles.
 # curl + jq: o aur-repo.sh resolve dependências pela API do AUR.
@@ -57,7 +68,7 @@ cp -rT "$REPO_DIR/iso/profile/airootfs" "$PROFILE/airootfs"
 
 echo "==> [4/7] pacman.conf com multilib + repositório AUR local"
 cp -f /etc/pacman.conf "$PROFILE/pacman.conf"
-sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/ s/^#//' "$PROFILE/pacman.conf"
+garante_multilib "$PROFILE/pacman.conf"
 cat >> "$PROFILE/pacman.conf" <<PACMAN
 
 [brummy-aur]
@@ -72,6 +83,23 @@ if [[ -f "$AUR_DIR/FALHARAM.txt" ]]; then
   while read -r p; do
     [[ -n "$p" ]] && sed -i "/^${p}$/d" "$PROFILE/packages.x86_64"
   done < "$AUR_DIR/FALHARAM.txt"
+fi
+# Um nome que nenhum repositório tem derruba o mkarchiso inteiro no fim da
+# build (o pacstrap não pula nada). Confere antes, com o mesmo pacman.conf,
+# e tira com aviso: melhor uma ISO sem um pacote do que nenhuma ISO.
+pacman --config "$PROFILE/pacman.conf" -Sy >/dev/null
+sumidos=()
+while read -r p; do
+  [[ -z "$p" || "$p" == \#* ]] && continue
+  # -Si: o nome existe? -Sp só de reserva, para nome virtual (provides)
+  pacman --config "$PROFILE/pacman.conf" -Si "$p" &>/dev/null \
+    || pacman --config "$PROFILE/pacman.conf" -Sp --print-format '%n' "$p" &>/dev/null \
+    || sumidos+=("$p")
+done < "$PROFILE/packages.x86_64"
+if ((${#sumidos[@]})); then
+  echo "  AVISO: nenhum repositório tem: ${sumidos[*]} — saem da ISO"
+  for p in "${sumidos[@]}"; do sed -i "/^${p}$/d" "$PROFILE/packages.x86_64"; done
+  printf '%s\n' "${sumidos[@]}" > "$OUT/SUMIDOS.txt"
 fi
 
 echo "==> [6/7] conteúdo do Brummy"

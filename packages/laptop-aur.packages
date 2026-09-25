@@ -1,0 +1,3 @@
+# Brummy Linux — perfil laptop, pacotes do AUR (instalados só no perfil thinkpad)
+# thinkfan estava em laptop.packages, que vai pelo pacman — e o pacman não tem.
+thinkfan

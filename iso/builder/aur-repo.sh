@@ -39,6 +39,8 @@ mapfile -t PKGS < <(grep -v '^\s*#' "$REPO_DIR/packages/aur.packages" | grep -v 
 if [[ "${BRUMMY_ISO_SEM_DEV:-0}" != "1" && -f "$REPO_DIR/packages/dev-aur.packages" ]]; then
   mapfile -t -O "${#PKGS[@]}" PKGS < <(grep -v '^\s*#' "$REPO_DIR/packages/dev-aur.packages" | grep -v '^\s*$')
 fi
+[[ -f "$REPO_DIR/packages/laptop-aur.packages" ]] && \
+  mapfile -t -O "${#PKGS[@]}" PKGS < <(grep -v '^\s*#' "$REPO_DIR/packages/laptop-aur.packages" | grep -v '^\s*$')
 PKGS+=("calamares")
 
 # Já construído? Compara o nome exato: "claude-code-*" também casaria com um

@@ -110,6 +110,13 @@ Coisas que quase sempre precisam de ajuste, em ordem de probabilidade:
    (helium, wlogout), pacote que foi para os repositórios oficiais
    (spotify-launcher), dependência que também é do AUR (walker-bin → elephant,
    bottles → vkbasalt-cli) e `setterm` sem `TERM` (whitesur-gtk-theme).
+   **Segunda build:** o AUR inteiro construiu (28 pacotes, dependências do
+   bottles incluídas). Parou no pacstrap: o `sed` do multilib não casou com o
+   `pacman.conf` da imagem Docker (sumiram lib32-* e steam), e o `thinkfan` —
+   que é do AUR — estava numa lista do pacman. Agora o multilib tem a mesma
+   rede de segurança do `install.sh`, todo nome sem repositório sai da lista
+   com aviso (`SUMIDOS.txt`) em vez de derrubar a build, e o cache do AUR é
+   salvo mesmo quando a build falha.
 1. **AUR quebrando.** `claude-desktop`, `helium-browser-bin` e afins mudam de
    fonte e falham. O `aur-repo.sh` deixa cada um falhar sozinho e anota em
    `FALHARAM.txt`; o `build-iso.sh` tira os falhados da lista. A ISO sai sem
