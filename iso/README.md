@@ -117,6 +117,12 @@ Coisas que quase sempre precisam de ajuste, em ordem de probabilidade:
    rede de segurança do `install.sh`, todo nome sem repositório sai da lista
    com aviso (`SUMIDOS.txt`) em vez de derrubar a build, e o cache do AUR é
    salvo mesmo quando a build falha.
+   **Terceira build:** multilib ok (steam e lib32 resolvidos), AUR inteiro do
+   cache, pacstrap completo e initramfs gerado. Parou porque o live não tinha
+   `/etc/pacman.conf` nem mirrorlist: o `pacman.conf` do perfil vinha do
+   container, e a imagem Docker do Arch tem `NoExtract` — que também tiraria
+   locale e i18n (sem pt_BR). Agora ele vem do releng, e a build recusa
+   `NoExtract` no perfil.
 1. **AUR quebrando.** `claude-desktop`, `helium-browser-bin` e afins mudam de
    fonte e falham. O `aur-repo.sh` deixa cada um falhar sozinho e anota em
    `FALHARAM.txt`; o `build-iso.sh` tira os falhados da lista. A ISO sai sem

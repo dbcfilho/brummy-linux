@@ -14,5 +14,7 @@ syslinux
 # precisam destes; sem eles o initramfs do live não gera
 nbd
 mkinitcpio-nfs-utils
+# o hook archiso copia o squashfs para a RAM com ele (copytoram); sem ele, cp
+pv
 # instalador gráfico (vem do AUR — construído por builder/aur-repo.sh)
 calamares

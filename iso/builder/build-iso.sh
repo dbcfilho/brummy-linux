@@ -67,7 +67,14 @@ done
 cp -rT "$REPO_DIR/iso/profile/airootfs" "$PROFILE/airootfs"
 
 echo "==> [4/7] pacman.conf com multilib + repositório AUR local"
-cp -f /etc/pacman.conf "$PROFILE/pacman.conf"
+# Do releng, NÃO do container: o pacman.conf da imagem Docker do Arch tem
+# NoExtract para ela ser pequena, e o pacstrap obedece. Na 3ª build do CI o
+# live saiu sem /etc/pacman.conf e sem mirrorlist por isso — e também sairia
+# sem usr/share/locale e i18n, ou seja, sem pt_BR no live e no instalado.
+cp -f "$RELENG/pacman.conf" "$PROFILE/pacman.conf"
+if grep -q '^NoExtract' "$PROFILE/pacman.conf"; then
+  echo "ERRO: o pacman.conf do perfil tem NoExtract — a ISO sairia faltando arquivos"; exit 1
+fi
 garante_multilib "$PROFILE/pacman.conf"
 cat >> "$PROFILE/pacman.conf" <<PACMAN
 
