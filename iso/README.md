@@ -103,6 +103,13 @@ sudo dd if=iso/out/brummy-*.iso of=/dev/sdX bs=4M status=progress oflag=sync
 
 Coisas que quase sempre precisam de ajuste, em ordem de probabilidade:
 
+0. **Primeira build no CI (25/09/2026)** chegou até o `mkarchiso`: 14 pacotes
+   do AUR prontos, Calamares incluso. Parou por falta de `grub` no host e pelos
+   nomes antigos de bootmode. Os seis do AUR que falharam tinham causa
+   conhecida, e o `aur-repo.sh` agora trata cada uma: chave PGP desconhecida
+   (helium, wlogout), pacote que foi para os repositórios oficiais
+   (spotify-launcher), dependência que também é do AUR (walker-bin → elephant,
+   bottles → vkbasalt-cli) e `setterm` sem `TERM` (whitesur-gtk-theme).
 1. **AUR quebrando.** `claude-desktop`, `helium-browser-bin` e afins mudam de
    fonte e falham. O `aur-repo.sh` deixa cada um falhar sozinho e anota em
    `FALHARAM.txt`; o `build-iso.sh` tira os falhados da lista. A ISO sai sem

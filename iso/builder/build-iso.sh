@@ -13,8 +13,14 @@ NO_CACHE=""
 
 echo "==> [1/7] dependências da build"
 pacman-key --init &>/dev/null || true
-# -Syu, não -Sy: atualização parcial é o jeito clássico de quebrar um Arch
-pacman -Syu --noconfirm --needed archiso git base-devel sudo squashfs-tools
+# multilib também no container: sem ele, dependência lib32 de pacote do AUR
+# parece "não existe" e o pacote falha
+sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/ s/^#//' /etc/pacman.conf
+# -Syu, não -Sy: atualização parcial é o jeito clássico de quebrar um Arch.
+# dosfstools + mtools: o mkarchiso monta a partição EFI da ISO com eles.
+# curl + jq: o aur-repo.sh resolve dependências pela API do AUR.
+pacman -Syu --noconfirm --needed archiso git base-devel sudo squashfs-tools \
+  dosfstools mtools curl jq
 
 echo "==> [2/7] pacotes AUR -> repositório local"
 bash "$REPO_DIR/iso/builder/aur-repo.sh" "$REPO_DIR" "$AUR_DIR" "$NO_CACHE"
