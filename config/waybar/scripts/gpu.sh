@@ -21,7 +21,6 @@ BUSY=$(ls -d /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | head -1)
 if [[ -n "${BUSY:-}" ]]; then
   DEV=$(dirname "$BUSY")
   usage=$(cat "$BUSY" 2>/dev/null || echo 0)
-  name=$(cat "$DEV/../device/product_name" 2>/dev/null || echo "GPU AMD")
   temp="--"
   for f in "$DEV"/hwmon/hwmon*/temp1_input; do
     [[ -f "$f" ]] && { temp=$(awk '{printf "%.0f", $1/1000}' "$f"); break; }
