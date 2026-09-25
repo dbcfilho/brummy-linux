@@ -54,8 +54,10 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          Hyprland --version | head -1
-          runuser -u brummy -- env HOME=/home/brummy XDG_RUNTIME_DIR=/run/user/brummy \
-            Hyprland --verify-config 2>&1 | tee verify.log
+          # Até o --version aborta sem XDG_RUNTIME_DIR (mesma nota do doctor):
+          # tudo que chama o Hyprland passa por aqui.
+          hypr() { runuser -u brummy -- env HOME=/home/brummy XDG_RUNTIME_DIR=/run/user/brummy Hyprland "$@"; }
+          hypr --version | head -1
+          hypr --verify-config 2>&1 | tee verify.log
           # na VM, config válida termina com "config ok"
           grep -qi 'config ok' verify.log
